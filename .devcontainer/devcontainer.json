@@ -1,0 +1,109 @@
+{
+    "name": "Mastra TypeScript Starter",
+    "dockerComposeFile": [
+        "docker-compose.yml",
+        "docker-compose.override.yml"
+    ],
+    "service": "devcontainer",
+    "runServices": [
+        "devcontainer"
+    ],
+    "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "installZsh": true,
+            "installOhMyZsh": true,
+            "upgradePackages": true,
+            "username": "automatic",
+            "userUid": "automatic",
+            "userGid": "automatic"
+        },
+        "ghcr.io/devcontainers/features/git:1": {
+            "ppa": true,
+            "version": "os-provided"
+        },
+        "ghcr.io/devcontainers/features/node:1": {
+            "version": "22",
+            "installYarnUsingApt": false
+        },
+        "ghcr.io/rocker-org/devcontainer-features/apt-packages:1": {
+            "packages": "bash-completion xdg-utils pass sshpass build-essential python3 python3-pip curl wget netcat-traditional iputils-ping dnsutils git-lfs sqlite3 vim less"
+        },
+        "ghcr.io/eitsupi/devcontainer-features/jq-likes:2": {
+            "jq": "latest",
+            "yq": "latest"
+        },
+        "ghcr.io/devcontainers/features/github-cli:1": {},
+        "ghcr.io/devcontainers/features/docker-in-docker:2": {
+            "version": "latest",
+            "moby": false,
+            "dockerDashComposeVersion": "v2"
+        }
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "dbaeumer.vscode-eslint",
+                "esbenp.prettier-vscode",
+                "ms-vscode.vscode-typescript-next",
+                "vitest.explorer",
+                "ms-azuretools.vscode-docker",
+                "ms-kubernetes-tools.vscode-kubernetes-tools",
+                "redhat.vscode-yaml",
+                "tamasfe.even-better-toml",
+                "DavidAnson.vscode-markdownlint",
+                "yzhang.markdown-all-in-one",
+                "github.copilot",
+                "github.copilot-chat",
+                "streetsidesoftware.code-spell-checker",
+                "eamodio.gitlens",
+                "EditorConfig.EditorConfig",
+                "GitHub.vscode-pull-request-github",
+                "github.vscode-github-actions"
+            ],
+            "settings": {
+                "remote.autoForwardPorts": false,
+                "editor.formatOnSave": true,
+                "editor.defaultFormatter": "esbenp.prettier-vscode",
+                "editor.codeActionsOnSave": {
+                    "source.fixAll.eslint": "explicit"
+                },
+                "typescript.tsserver.experimental.useProjectDiagnostics": true,
+                "typescript.preferences.importModuleSpecifier": "relative",
+                "typescript.tsserver.maxTsServerMemory": 1536,
+                "extensions.experimental.useUtilityProcess": false,
+                "files.exclude": {
+                    "**/node_modules": true,
+                    "**/dist": true,
+                    "**/.turbo": true
+                },
+                "search.exclude": {
+                    "**/node_modules": true,
+                    "**/dist": true,
+                    "**/.turbo": true,
+                    "**/pnpm-lock.yaml": true
+                }
+            }
+        }
+    },
+    "remoteEnv": {
+        "LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}",
+        "PNPM_HOME": "/home/vscode/.local/share/pnpm",
+        "PATH": "/home/vscode/.local/share/pnpm:${containerEnv:PATH}",
+        "TURBO_TELEMETRY_DISABLED": "1"
+    },
+    "forwardPorts": [
+        3000
+    ],
+    "initializeCommand": {
+        "compose-override-file-exists": "if [ ! -f \".devcontainer/docker-compose.override.yml\" ]; then echo \"services: {}\" > .devcontainer/docker-compose.override.yml; fi",
+    },
+    "postCreateCommand": {
+        "install-packages": "pnpm install || true",
+        "install-global-packages": "bash ${containerWorkspaceFolder}/.devcontainer/scripts/install-global-packages.sh"
+    },
+    "postStartCommand": {
+        "enable-git-safe-directory": "git config --global --add safe.directory ${containerWorkspaceFolder}"
+    },
+    "remoteUser": "vscode"
+}

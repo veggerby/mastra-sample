@@ -1,0 +1,39 @@
+services:
+    # Main development container
+    devcontainer:
+        image: mcr.microsoft.com/devcontainers/base:${VARIANT:-trixie}
+        volumes:
+            # Forwards the local Docker socket to the container.
+            - /var/run/docker.sock:/var/run/docker.sock
+            # Update this to wherever you want VS Code to mount the folder of your project
+            - ../..:/workspaces:cached
+        networks:
+            - mastra-dev
+        environment:
+            # Application environment
+            NODE_ENV: ${NODE_ENV:-development}
+            LOG_LEVEL: ${LOG_LEVEL:-debug}
+
+            # GitHub tokens
+            GH_TOKEN: ${GITHUB_TOKEN:-}
+            NPM_AUTH_TOKEN: ${GITHUB_TOKEN:-}
+        # Keep container alive
+        command: sleep infinity
+
+    # Optional: Jaeger for distributed tracing
+    jaeger:
+        image: jaegertracing/all-in-one:latest
+        networks:
+            - mastra-dev
+        environment:
+            COLLECTOR_OTLP_ENABLED: 'true'
+        restart: unless-stopped
+        profiles:
+            - observability
+            - full
+
+networks:
+    mastra-dev:
+        driver: bridge
+
+volumes: {}

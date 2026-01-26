@@ -1,0 +1,45 @@
+{
+  "name": "@mastra-starter/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "type-check": "tsc --noEmit",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@ai-sdk/openai": "catalog:",
+    "@mastra/core": "catalog:",
+    "@mastra/express": "catalog:",
+    "@mastra/libsql": "catalog:",
+    "ai": "catalog:",
+    "dotenv": "catalog:",
+    "express": "catalog:",
+    "pino": "catalog:",
+    "pino-pretty": "catalog:",
+    "tsx": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@types/express": "^5.0.6",
+    "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
+    "tsup": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  },
+  "engines": {
+    "node": ">=22.13.0"
+  }
+}

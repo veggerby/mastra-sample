@@ -1,0 +1,128 @@
+# Mastra CLI
+
+A command-line interface for interacting with Mastra agents.
+
+## Installation
+
+The CLI is already installed with the project dependencies.
+
+## Usage
+
+### Basic Commands
+
+```bash
+# Run the CLI
+npm run cli -- [command] [options]
+
+# List all available agents
+npm run cli -- list
+
+# Get info about a specific agent
+npm run cli -- info general
+npm run cli -- info weather
+npm run cli -- info router
+
+# Check server status
+npm run cli -- status
+```
+
+### Chat with Agents
+
+#### Interactive Chat Mode
+
+```bash
+# Chat with the router agent (default)
+npm run cli -- chat
+
+# Chat with a specific agent
+npm run cli -- chat general
+npm run cli -- chat weather
+
+# Continue a previous conversation
+npm run cli -- chat --thread cli-1234567890
+```
+
+#### Single Message Mode
+
+```bash
+# Send a single message to an agent
+npm run cli -- chat general -m "Hello, how are you?"
+npm run cli -- chat weather -m "What's the weather in Paris?"
+
+# Send a message and continue thread
+npm run cli -- chat router -m "Tell me a joke" -t my-thread-123
+```
+
+### Weather Commands
+
+```bash
+# Get current weather
+npm run cli -- weather "San Francisco"
+
+# Get weather with forecast
+npm run cli -- weather "New York" --forecast
+
+# Get weather with custom forecast days
+npm run cli -- weather "Tokyo" --forecast --days 5
+```
+
+### Workflow Commands
+
+```bash
+# Run a workflow
+npm run cli -- workflow exampleWorkflow
+
+# Run a workflow with input data
+npm run cli -- workflow exampleWorkflow --input '{"name": "John", "age": 30}'
+```
+
+## Examples
+
+### Example 1: Quick Weather Check
+
+```bash
+npm run cli -- weather "London"
+```
+
+### Example 2: Interactive Chat with Router
+
+```bash
+npm run cli -- chat router
+> You: What's the weather in Paris?
+🤖 router: [Weather information...]
+> You: Tell me a joke
+🤖 router: [Joke...]
+> You: exit
+```
+
+### Example 3: Check Server Status
+
+```bash
+npm run cli -- status
+```
+
+### Example 4: Get Agent Information
+
+```bash
+npm run cli -- info router
+```
+
+## Available Agents
+
+- **router**: Analyzes user intent and delegates to specialized agents
+- **general**: Handles general conversation and non-specialized queries
+- **weather**: Provides weather information and forecasts
+
+## Tips
+
+- Use `exit` or `quit` to end interactive chat sessions
+- Thread IDs allow you to continue previous conversations
+- The router agent automatically delegates to the best agent for your query
+- Use `--help` on any command to see detailed options
+
+## Development
+
+```bash
+# Run CLI in watch mode (auto-reload on changes)
+npm run cli:watch -- [command]
+```

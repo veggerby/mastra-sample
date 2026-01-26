@@ -1,0 +1,23 @@
+# MCP Server Configuration
+# Add your MCP servers here for external tool integration
+
+# Example MCP server configuration:
+# - name: example-server
+#   baseUrl: stdio://node path/to/server.js
+#   env:
+#     API_KEY: ${EXAMPLE_API_KEY}
+#   allowlist:
+#     - tool_prefix_*
+#     - specific_tool_name
+
+# Uncomment and configure as needed:
+# - name: filesystem
+#   baseUrl: npx -y @modelcontextprotocol/server-filesystem /path/to/allowed/dir
+#   allowlist:
+#     - read_file
+#     - list_directory
+
+# - name: fetch
+#   baseUrl: npx -y @modelcontextprotocol/server-fetch
+#   allowlist:
+#     - fetch
