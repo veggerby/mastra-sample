@@ -169,10 +169,17 @@ Use this when you need to provide accurate information about these topics.`,
       }
 
       // Format results
-      const results = messages.map((msg) => ({
-        content: msg.content as string,
-        relevance: "high",
-      }));
+      const results = messages.map((msg) => {
+        // Safely handle content that might not be a string
+        const content = typeof msg.content === "string" 
+          ? msg.content 
+          : JSON.stringify(msg.content);
+        
+        return {
+          content,
+          relevance: "high", // Note: Actual relevance scoring would require similarity scores from vector search
+        };
+      });
 
       const summary = `Found ${results.length} relevant result(s) from the knowledge base.`;
 

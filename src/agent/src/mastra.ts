@@ -70,8 +70,11 @@ async function seedKnowledgeBase() {
 
     // Save each knowledge document as a message
     for (const doc of knowledgeDocuments) {
+      // Generate safe ID by replacing spaces and special characters
+      const safeId = `knowledge-${doc.topic.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")}`;
+      
       await storage.saveMessage({
-        id: `knowledge-${doc.topic.toLowerCase().replace(/\s+/g, "-")}`,
+        id: safeId,
         threadId,
         role: "system",
         content: `Topic: ${doc.topic}\n\n${doc.content}`,
