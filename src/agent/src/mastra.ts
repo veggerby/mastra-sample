@@ -1,6 +1,6 @@
 import { Mastra } from "@mastra/core";
 import { LibSQLStore } from "@mastra/libsql";
-import { routerAgent, generalAgent, weatherAgent } from "./agents/index.js";
+import { routerAgent, generalAgent, weatherAgent, memoryAgent } from "./agents/index.js";
 import { logger } from "./logger.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
@@ -24,6 +24,7 @@ export const mastra = new Mastra({
     router: routerAgent,
     general: generalAgent,
     weather: weatherAgent,
+    memory: memoryAgent,
   },
   storage,
   server: {

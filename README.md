@@ -1,10 +1,11 @@
 # Mastra TypeScript Starter Template
 
-A minimal multi-agent solution template with routing, MCP servers, and custom instructions.
+A minimal multi-agent solution template with routing, MCP servers, **RAG/memory support**, and custom instructions.
 
 ## Features
 
 - **Multi-Agent Architecture**: Router agent that delegates to specialized domain agents
+- **Memory & RAG Support**: Persistent conversation memory with optional pgvector for semantic search
 - **MCP Integration**: Example MCP server setup with tool allowlists
 - **Persona System**: YAML-based personality configuration
 - **Workflows**: Multi-step orchestrations with agent-as-step pattern
@@ -52,6 +53,9 @@ npm run cli -- chat router
 # Send a single message
 npm run cli -- chat general -m "Hello!"
 
+# Chat with the memory-enabled agent (remembers context)
+npm run cli -- chat memory
+
 # Get weather information
 npm run cli -- weather "San Francisco" --forecast
 
@@ -63,6 +67,28 @@ npm run cli -- --help
 ```
 
 See [CLI.md](CLI.md) for complete CLI documentation.
+
+### Memory and RAG Support
+
+This template includes built-in support for persistent memory and RAG (Retrieval-Augmented Generation):
+
+```bash
+# Chat with memory agent (remembers conversation)
+npm run cli -- chat memory
+
+# The agent will remember context within the same thread
+# Example conversation:
+# You: "My name is Alice"
+# Agent: "Nice to meet you, Alice!"
+# You: "What is my name?"
+# Agent: "Your name is Alice!"
+```
+
+See [MEMORY.md](MEMORY.md) for comprehensive guide on:
+- Setting up memory-enabled agents
+- Using pgvector for semantic search
+- Migrating from LibSQL to PostgreSQL
+- RAG implementation patterns
 
 Option 2: **Using the HTTP API**
 
