@@ -280,22 +280,11 @@ curl -X POST http://localhost:3000/api/workflows/weather-analysis/execute \
   -d '{"data": {"location": "San Francisco"}}'
 ```
 
-## Production Deployment
-
-See AETHER's deployment docs for:
-
-- Docker containerization
-- Kubernetes/Helm charts
-- Environment configuration
-- Monitoring and observability
-
 ## Resources
 
 - [Mastra Documentation](https://mastra.ai/docs)
 - [Model Context Protocol](https://modelcontextprotocol.io/)
-- [AETHER Architecture](../../docs/architecture/architecture.md)
-- [AETHER Testing Guide](../../docs/testing/testing.md)
 
 ## License
 
-Same as AETHER parent project.
+MIT
