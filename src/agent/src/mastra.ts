@@ -4,6 +4,7 @@ import { routerAgent, generalAgent, weatherAgent, memoryAgent } from "./agents/i
 import { logger } from "./logger.js";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
+import { getKnowledgeDocuments, getKnowledgeBaseThreadId } from "./mastra/tools/rag-tools.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -33,3 +34,58 @@ export const mastra = new Mastra({
 });
 
 logger.info("Mastra initialized successfully");
+
+/**
+ * Seed the knowledge base with general information
+ * This runs when the server starts
+ */
+async function seedKnowledgeBase() {
+  try {
+    const threadId = getKnowledgeBaseThreadId();
+    
+    // Check if already seeded by querying storage
+    const threads = await storage.listThreads({ 
+      limit: 100 
+    });
+    
+    const knowledgeThread = threads.data.find((t) => t.id === threadId);
+    
+    if (knowledgeThread) {
+      logger.info("Knowledge base already seeded");
+      return;
+    }
+
+    logger.info("Seeding knowledge base with general information...");
+
+    // Get knowledge documents
+    const knowledgeDocuments = getKnowledgeDocuments();
+
+    // Create thread for knowledge base
+    await storage.saveThread({
+      id: threadId,
+      title: "General Knowledge Base",
+      resourceId: "system",
+      metadata: { type: "knowledge-base" },
+    });
+
+    // Save each knowledge document as a message
+    for (const doc of knowledgeDocuments) {
+      await storage.saveMessage({
+        id: `knowledge-${doc.topic.toLowerCase().replace(/\s+/g, "-")}`,
+        threadId,
+        role: "system",
+        content: `Topic: ${doc.topic}\n\n${doc.content}`,
+        resourceId: "system",
+      });
+    }
+
+    logger.info(`Knowledge base seeded with ${knowledgeDocuments.length} documents`);
+  } catch (error) {
+    logger.error("Failed to seed knowledge base:", error);
+  }
+}
+
+// Seed knowledge base asynchronously
+seedKnowledgeBase().catch((error) => {
+  logger.error("Error in knowledge base seeding:", error);
+});
