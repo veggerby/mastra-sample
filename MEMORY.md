@@ -123,9 +123,9 @@ SELECT * FROM pg_extension WHERE extname = 'vector';
 
 #### 3. Update Your Application
 
-**a. Install @mastra/pg dependency** (already included in this sample)
+**Option A: Modify existing mastra.ts** (recommended for this sample)
 
-**b. Update `src/agent/src/mastra.ts`:**
+Update `src/agent/src/mastra.ts`:
 
 ```typescript
 import { Mastra } from "@mastra/core";
@@ -155,7 +155,20 @@ export const mastra = new Mastra({
 });
 ```
 
-**c. Update `.env`:**
+**Option B: Use the provided mastra-pg.ts configuration**
+
+The sample includes a ready-to-use PostgreSQL configuration in `src/agent/src/mastra-pg.ts`.
+Simply update `src/agent/src/index.ts` to import from `mastra-pg.js` instead of `mastra.js`:
+
+```typescript
+// Change this line:
+import { mastra } from "./mastra.js";
+
+// To this:
+import { mastra } from "./mastra-pg.js";
+```
+
+**Update `.env`:**
 
 ```bash
 # PostgreSQL connection string
@@ -187,6 +200,7 @@ psql -d mastra -f converted_backup.sql
 ```typescript
 import { Memory } from "@mastra/memory";
 import { Agent } from "@mastra/core/agent";
+import { openai } from "@ai-sdk/openai";
 
 const memory = new Memory({
   embedding: {
@@ -200,7 +214,7 @@ const agent = new Agent({
   id: "my-agent",
   name: "My Agent",
   instructions: "You are a helpful assistant with memory.",
-  model: "openai/gpt-4o-mini",
+  model: openai("gpt-4o-mini"),
   memory,
 });
 ```
@@ -440,6 +454,10 @@ For 1M messages:
 ### Example 1: Personal Assistant with Memory
 
 ```typescript
+import { Memory } from "@mastra/memory";
+import { Agent } from "@mastra/core/agent";
+import { openai } from "@ai-sdk/openai";
+
 const assistantMemory = new Memory({
   embedding: {
     provider: "openai",
@@ -452,7 +470,7 @@ const assistant = new Agent({
   instructions: `You are a personal assistant. Remember user preferences, 
 important dates, and ongoing projects. Use context from previous conversations 
 to provide personalized assistance.`,
-  model: "openai/gpt-4o-mini",
+  model: openai("gpt-4o-mini"),
   memory: assistantMemory,
 });
 ```
