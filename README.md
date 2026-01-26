@@ -113,7 +113,8 @@ src/
 │   ├── agents/          # Domain-specific agents
 │   │   ├── router.ts    # Routes to domain agents
 │   │   ├── general.ts   # General conversation
-│   │   └── weather.ts   # Weather domain
+│   │   ├── weather.ts   # Weather domain
+│   │   └── memory-agent.ts  # Memory-enabled agent with RAG
 │   ├── tools/           # Reusable tools
 │   │   └── example-tools.ts
 │   ├── workflows/       # Multi-step orchestrations
@@ -125,6 +126,7 @@ src/
 personas/
 ├── default.yaml         # Default personality
 mcp-servers.yaml         # MCP server configuration
+MEMORY.md                # RAG/Memory setup and usage guide
 ```
 
 ## Key Concepts
@@ -218,12 +220,15 @@ systemPrompt: |
 ```bash
 # Required
 OPENAI_API_KEY=sk-...              # Or other LLM provider
-DATABASE_URL=file:./data/app.db    # LibSQL/SQLite storage
+DATABASE_URL=file:./data/app.db    # LibSQL/SQLite storage (default)
+# DATABASE_URL=postgresql://...     # PostgreSQL with pgvector (for RAG)
 
 # Optional
 LOG_LEVEL=info
 PORT=3000
 ```
+
+See [MEMORY.md](MEMORY.md) for PostgreSQL + pgvector setup instructions.
 
 ### Customization
 
