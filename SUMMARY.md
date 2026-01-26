@@ -15,7 +15,32 @@ This document summarizes the RAG/Memory support implementation for the mastra-sa
 A fully-functional agent demonstrating memory capabilities:
 - Persistent conversation history across sessions
 - Working memory for context retention  
+- **RAG tools integration** for knowledge base access
 - Ready for semantic search when using pgvector
+
+#### RAG Tools (`src/agent/src/mastra/tools/rag-tools.ts`)
+Two powerful tools for Retrieval-Augmented Generation:
+
+**1. Query Knowledge Base Tool**
+- Search the seeded knowledge base for accurate information
+- Covers topics: Mastra, AI agents, RAG, TypeScript, vector databases
+- Uses agent's memory for context-aware retrieval
+- Returns relevant results with summaries
+
+**2. Add Knowledge Tool**
+- Expand the knowledge base with new information
+- Allows agents to learn and store new facts
+- Persistent storage in the same thread as general knowledge
+
+#### Knowledge Base Seeding (`src/agent/src/mastra.ts`)
+- Automatic seeding on server startup
+- 5 comprehensive knowledge documents:
+  - Mastra Framework features and capabilities
+  - AI Agent Best Practices (10 key guidelines)
+  - RAG Implementation steps and patterns
+  - TypeScript Development best practices
+  - Vector Databases comparison and concepts
+- Stored in LibSQL database under thread ID `general-knowledge-base`
 
 #### Alternative PostgreSQL Configuration (`src/agent/src/mastra-pg.ts`)
 Drop-in replacement configuration file for production PostgreSQL deployments:
@@ -23,11 +48,13 @@ Drop-in replacement configuration file for production PostgreSQL deployments:
 - Configured for pgvector semantic search
 - Just swap the import in `index.ts` to switch
 
+
 ### 3. Documentation
 
-#### MEMORY.md (12KB comprehensive guide)
+#### MEMORY.md (Comprehensive guide - expanded)
 Complete documentation covering:
 - **Quick Start** - Get started in 5 minutes
+- **RAG Tools** - Query and expand the knowledge base
 - **Architecture** - LibSQL vs PostgreSQL comparison
 - **PostgreSQL Setup** - Step-by-step pgvector installation
 - **Memory Configuration** - Basic and advanced examples
@@ -37,10 +64,12 @@ Complete documentation covering:
 - **Cost Estimation** - Detailed cost breakdown
 - **Troubleshooting** - Common issues and solutions
 - **Examples** - 3 real-world use cases with full code
+- **Custom Knowledge Bases** - How to create your own
 
 #### README.md Updates
 - Added memory/RAG to features list
-- Added memory agent usage examples
+- **Added RAG knowledge base usage examples**
+- **Documented pre-seeded knowledge topics**
 - Updated project structure to show new files
 - Added environment variable documentation
 - Links to MEMORY.md throughout
@@ -55,17 +84,26 @@ Complete documentation covering:
 - Basic agent instantiation test
 - Agent type verification
 - Instructions content validation
-- **All tests passing** (32 total in project)
+
+#### RAG Tools Tests (`src/agent/src/mastra/tools/rag-tools.test.ts`)
+- Knowledge documents validation (3 tests)
+- Thread ID consistency tests (1 test)
+- Query tool schema validation (4 tests)
+- Add tool schema validation (4 tests)
+- **All tests passing** (44 total in project)
 
 ## How It Works
 
 ### Default Configuration (LibSQL)
 ```
-User → Agent → Memory → LibSQLStore → data/app.db
+User → Agent → RAG Tools → Memory → LibSQLStore → data/app.db
+                   ↓
+           Knowledge Base Thread
 ```
 - Zero configuration required
 - Perfect for development
 - File-based storage
+- **Pre-seeded with 5 knowledge documents**
 
 ### Production Configuration (PostgreSQL + pgvector)
 ```

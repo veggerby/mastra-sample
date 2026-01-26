@@ -72,6 +72,7 @@ See [CLI.md](CLI.md) for complete CLI documentation.
 
 This template includes built-in support for persistent memory and RAG (Retrieval-Augmented Generation):
 
+**Memory Agent:**
 ```bash
 # Chat with memory agent (remembers conversation)
 npm run cli -- chat memory
@@ -84,8 +85,26 @@ npm run cli -- chat memory
 # Agent: "Your name is Alice!"
 ```
 
+**RAG Knowledge Base:**
+```bash
+# Ask the general agent about technical topics
+npm run cli -- chat general -m "What is Mastra framework?"
+
+# The agent uses RAG tools to query a seeded knowledge base
+# for accurate information about:
+# - Mastra framework features
+# - AI agent best practices  
+# - RAG implementation
+# - TypeScript development
+# - Vector databases
+```
+
+The knowledge base is automatically seeded when the server starts and agents can both query and expand it.
+
 See [MEMORY.md](MEMORY.md) for comprehensive guide on:
 - Setting up memory-enabled agents
+- Using RAG tools for knowledge retrieval
+- Creating custom knowledge bases
 - Using pgvector for semantic search
 - Migrating from LibSQL to PostgreSQL
 - RAG implementation patterns

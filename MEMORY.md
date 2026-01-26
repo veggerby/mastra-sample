@@ -9,6 +9,7 @@ Mastra provides built-in support for:
 - **Working Memory**: Maintain context and key facts within a thread
 - **Semantic Search**: Use vector embeddings for intelligent context retrieval
 - **RAG (Retrieval-Augmented Generation)**: Enhance responses with relevant historical context
+- **Knowledge Base Tools**: Query and expand a seeded knowledge base with general information
 
 ## Quick Start
 
@@ -38,6 +39,153 @@ curl -X POST http://localhost:3000/api/agents/memory/generate \
     "messages": [{"role": "user", "content": "What is my name?"}],
     "threadId": "user-123"
   }'
+```
+
+### Using RAG Tools
+
+Both the **general agent** and **memory agent** come with RAG tools pre-configured:
+
+```bash
+# Ask the general agent about Mastra (it will use the knowledge base)
+pnpm run dev:cli -- chat general -m "What is Mastra and what are its key features?"
+
+# Ask about RAG implementation
+pnpm run dev:cli -- chat general -m "How do I implement RAG in my application?"
+
+# The agents will automatically query the knowledge base for accurate information
+```
+
+The knowledge base is automatically seeded with information about:
+- Mastra framework and its features
+- AI agent best practices
+- RAG implementation patterns
+- TypeScript development guidelines
+- Vector databases and embeddings
+
+## RAG Tools
+
+The sample includes two RAG tools that are integrated into both the general and memory agents:
+
+### 1. Query Knowledge Base Tool
+
+Search the pre-seeded knowledge base for accurate information:
+
+```typescript
+// Automatically used by agents when responding to questions
+// about Mastra, AI agents, RAG, TypeScript, or vector databases
+
+// Example usage in agent context:
+const result = await queryKnowledgeTool.execute({
+  query: "How do I implement RAG?",
+  limit: 3,
+});
+
+// Returns:
+{
+  results: [
+    {
+      content: "Topic: RAG Implementation\n\nRetrieval-Augmented Generation...",
+      relevance: "high"
+    },
+    // ... more results
+  ],
+  summary: "Found 3 relevant result(s) from the knowledge base."
+}
+```
+
+### 2. Add Knowledge Tool
+
+Expand the knowledge base with new information:
+
+```typescript
+// Example usage in agent context:
+const result = await addKnowledgeTool.execute({
+  topic: "Deployment",
+  content: "Deploy to production using Docker containers..."
+});
+
+// Returns:
+{
+  success: true,
+  message: "Successfully added knowledge about \"Deployment\" to the knowledge base."
+}
+```
+
+### How RAG Tools Work
+
+1. **Knowledge Base Seeding**: When the server starts, the knowledge base is automatically seeded with general information stored in the LibSQL database under a special thread ID (`general-knowledge-base`).
+
+2. **Agent Integration**: Both the general agent and memory agent have these RAG tools configured. When you ask them questions about the covered topics, they can query the knowledge base for accurate information.
+
+3. **Context-Aware Responses**: Agents use the retrieved information to provide grounded, factual responses rather than relying solely on their training data.
+
+4. **Expandable**: The `add-knowledge` tool allows agents (or users through agents) to expand the knowledge base with new information over time.
+
+### Creating Custom Knowledge Bases
+
+You can create your own knowledge bases by following this pattern:
+
+```typescript
+// In your-custom-tools.ts
+import { createTool } from "@mastra/core/tools";
+import { z } from "zod";
+
+const CUSTOM_KB_THREAD_ID = "custom-knowledge-base";
+
+export const queryCustomKBTool = createTool({
+  id: "query-custom-kb",
+  description: "Search your custom knowledge base",
+  inputSchema: z.object({
+    query: z.string(),
+    limit: z.number().default(3),
+  }),
+  outputSchema: z.object({
+    results: z.array(z.object({
+      content: z.string(),
+      relevance: z.string(),
+    })),
+    summary: z.string(),
+  }),
+  execute: async ({ query, limit }, context) => {
+    const agent = context?.agent;
+    if (!agent || !agent.memory) {
+      throw new Error("Agent must have memory configured");
+    }
+
+    const { messages } = await agent.memory.recall({
+      threadId: CUSTOM_KB_THREAD_ID,
+      vectorSearchString: query,
+      limit,
+    });
+
+    return {
+      results: messages.map(m => ({
+        content: m.content as string,
+        relevance: "high",
+      })),
+      summary: `Found ${messages.length} results`,
+    };
+  },
+});
+
+// Seed your custom knowledge base on server start
+async function seedCustomKB() {
+  const storage = mastra.storage;
+  
+  await storage.saveThread({
+    id: CUSTOM_KB_THREAD_ID,
+    title: "Custom Knowledge Base",
+    resourceId: "system",
+  });
+
+  await storage.saveMessage({
+    id: "custom-1",
+    threadId: CUSTOM_KB_THREAD_ID,
+    role: "system",
+    content: "Your custom knowledge content here...",
+    resourceId: "system",
+  });
+}
 ```
 
 ## Architecture
