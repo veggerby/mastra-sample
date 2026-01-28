@@ -4,6 +4,7 @@ import { logger } from "./logger.js";
 import { vector } from "./rag.js";
 import { storage } from "./memory.js";
 import { config } from "./config.js";
+import { researchReportWorkflow } from "./mastra/workflows/research-report-workflow.js";
 
 logger.info("Initializing Mastra with agents and workflows");
 
@@ -13,6 +14,9 @@ export const mastra: Mastra = new Mastra({
     router: routerAgent,
     general: generalAgent,
     weather: weatherAgent,
+  },
+  workflows: {
+    researchReport: researchReportWorkflow,
   },
   storage, // Shared storage for conversation history and working memory
   vectors: {

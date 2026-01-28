@@ -397,6 +397,216 @@ pnpm run type-check
 pnpm run lint
 ```
 
+## Workflows
+
+This template includes a **Research Report Workflow** that demonstrates Mastra's workflow capabilities for multi-step task orchestration.
+
+### What are Workflows?
+
+Workflows let you define complex sequences of tasks using clear, structured steps rather than relying on the reasoning of a single agent. They give you full control over:
+
+- **Step Execution Order**: Define explicit sequences with branching and parallel execution
+- **Data Flow**: Type-safe input/output schemas with Zod validation
+- **State Management**: Share values across steps without passing through every schema
+- **Tool & Agent Integration**: Call tools and agents within workflow steps
+- **Streaming**: Monitor progress with real-time step completion events
+
+Use workflows when you have clearly defined multi-step processes that require precise control over execution flow and data transformations.
+
+### Research Report Workflow
+
+The included workflow demonstrates key features:
+
+**Steps:**
+
+1. **Query Knowledge Base** - Searches RAG for information on the topic
+2. **Get Metadata** - Retrieves current time and date for the report
+3. **Synthesize Report** - Uses the general agent to create a formatted research report
+
+**Features Demonstrated:**
+
+- Multi-step execution with type-safe schemas
+- Tool usage (RAG query, time tools)
+- Agent integration (general agent for synthesis)
+- Workflow state management (tracks execution timestamps)
+- Input/output validation with Zod
+
+### Running Workflows via CLI
+
+The CLI provides a `workflow` command:
+
+```bash
+# Basic usage with topic (maxResults defaults to 3)
+pnpm run dev:cli workflow researchReport --topic "graviton wave theory"
+
+# With custom result count
+pnpm run dev:cli workflow researchReport --topic "quantum flux capacitor" --max-results 5
+
+# Using JSON input (more flexible)
+pnpm run dev:cli workflow researchReport --input '{"topic": "BioSynth Corporation", "maxResults": 3}'
+```
+
+**Output Example:**
+
+```txt
+╭─────────────────────────────────────────╮
+│   🔄 Workflow: researchReport           │
+╰─────────────────────────────────────────╯
+
+📋 Input data:
+{
+  "topic": "graviton wave theory",
+  "maxResults": 3
+}
+
+✅ Workflow completed
+
+📄 Result:
+────────────────────────────────────────
+Status: success
+
+📝 Summary:
+This research report examines the theoretical framework of graviton wave manipulation...
+
+📋 Full Report:
+────────────────────────────────────────
+## Executive Summary
+
+This research report examines the theoretical framework of graviton wave manipulation...
+
+## Overview
+
+Graviton waves represent a revolutionary approach to understanding...
+
+[...full formatted report...]
+
+🔍 Step Execution Details:
+────────────────────────────────────────
+  • query-knowledge-base: ✓
+  • get-metadata: ✓
+  • synthesize-report: ✓
+
+📊 Workflow State:
+────────────────────────────────────────
+{
+  "researchStartTime": "2026-01-28T10:30:00.000Z",
+  "metadataAddedTime": "2026-01-28T10:30:02.000Z",
+  "reportCompletedTime": "2026-01-28T10:30:15.000Z"
+}
+────────────────────────────────────────
+```
+
+### Example Queries
+
+Try these topics to explore the knowledge base through workflows:
+
+```bash
+# Graviton Wave Theory
+pnpm run dev:cli workflow researchReport --topic "graviton wave theory applications"
+pnpm run dev:cli workflow researchReport --topic "graviton wave detection methods"
+
+# Quantum Flux Capacitor
+pnpm run dev:cli workflow researchReport --topic "quantum flux capacitor"
+pnpm run dev:cli workflow researchReport --topic "Micro-QFC specifications"
+
+# BioSynth Corporation
+pnpm run dev:cli workflow researchReport --topic "BioSynth products"
+pnpm run dev:cli workflow researchReport --topic "NeuralSync implant features"
+```
+
+### Workflow via HTTP API
+
+You can also execute workflows using Mastra's built-in workflow API (via Mastra Client SDK):
+
+```typescript
+import { MastraClient } from "@mastra/client-js";
+
+const client = new MastraClient({ baseUrl: "http://localhost:3000" });
+
+// Get and execute workflow
+const workflow = client.getWorkflow("researchReport");
+const run = await workflow.createRun();
+const result = await run.start({
+  inputData: {
+    topic: "graviton wave theory",
+    maxResults: 3,
+  },
+});
+
+console.log(result);
+```
+
+For direct HTTP access, refer to the [Mastra API documentation](https://mastra.ai/docs).
+
+### Creating Custom Workflows
+
+To add your own workflow:
+
+1. **Create the workflow file** in `src/agent/src/mastra/workflows/`:
+
+```typescript
+import { createWorkflow, createStep } from "@mastra/core/workflows";
+import { z } from "zod";
+
+const step1 = createStep({
+  id: "step-1",
+  inputSchema: z.object({ message: z.string() }),
+  outputSchema: z.object({ result: z.string() }),
+  execute: async ({ inputData, mastra }) => {
+    // Your step logic here
+    // Can call tools: mastra?.tools?.get("tool-name")
+    // Can call agents: mastra?.agents?.get("agent-name")
+    return { result: inputData.message.toUpperCase() };
+  },
+});
+
+export const myWorkflow = createWorkflow({
+  id: "my-workflow",
+  inputSchema: z.object({ message: z.string() }),
+  outputSchema: z.object({ result: z.string() }),
+})
+  .then(step1)
+  .commit();
+```
+
+1. **Register in Mastra** (`src/agent/src/mastra.ts`):
+
+```typescript
+import { myWorkflow } from "./mastra/workflows/my-workflow.js";
+
+export const mastra = new Mastra({
+  workflows: {
+    researchReport: researchReportWorkflow,
+    myWorkflow: myWorkflow, // Add here
+  },
+  // ...
+});
+```
+
+1. **Execute via CLI**:
+
+```bash
+pnpm run dev:cli -- workflow myWorkflow --input '{"message": "hello"}'
+```
+
+**Key Features:**
+
+- **Type Safety**: Input/output schemas validated with Zod
+- **Tool Access**: Use `mastra?.tools?.get(name)` to call registered tools
+- **Agent Access**: Use `mastra?.agents?.get(name)` to call agents
+- **State Management**: Add `stateSchema` and use `setState()` to share data
+- **Nested Workflows**: Use workflows as steps in larger compositions
+- **Error Handling**: Steps can throw errors that halt execution
+- **Streaming**: Monitor progress with step-start and step-finish events
+
+See [Mastra Workflow Docs](https://mastra.ai/docs/workflows/overview) for:
+
+- Control flow patterns (branching, parallel execution)
+- Suspend & resume for long-running tasks
+- Error handling strategies
+- Advanced state management
+- Testing with Mastra Studio
+
 ## Extending This Template
 
 ### Add a New Domain Agent
@@ -448,10 +658,8 @@ curl -X POST http://localhost:3000/api/agents/router/generate \
   -H "Content-Type: application/json" \
   -d '{"messages": [{"role": "user", "content": "test query"}], "threadId": "test-123"}'
 
-# Execute workflow
-curl -X POST http://localhost:3000/api/workflows/weather-analysis/execute \
-  -H "Content-Type: application/json" \
-  -d '{"data": {"location": "San Francisco"}}'
+# Test workflows via CLI
+pnpm run dev:cli workflow researchReport --topic "test query"
 ```
 
 ## Resources

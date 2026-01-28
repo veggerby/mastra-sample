@@ -561,44 +561,121 @@ program
 program
   .command("workflow")
   .description("Execute a workflow")
-  .argument("<name>", "Workflow name")
-  .option("-i, --input <json>", "Input data as JSON string", "{}")
-  .action(async (workflowName: string, options: { input: string }) => {
-    const spinner = ora({
-      text: chalk.cyan(`Running workflow: ${chalk.bold(workflowName)}`),
-      spinner: "dots",
-    }).start();
+  .argument("<name>", "Workflow name to execute")
+  .option("-t, --topic <topic>", "Research topic (for research-report workflow)")
+  .option("-r, --max-results <number>", "Maximum number of results (default: 3)", "3")
+  .option("-i, --input <json>", "Input data as JSON string (overrides other options)")
+  .action(
+    async (
+      workflowName: string,
+      options: {
+        topic?: string;
+        maxResults: string;
+        input?: string;
+      },
+    ) => {
+      showHeader(`🔄 Workflow: ${workflowName}`);
 
-    try {
-      const input = JSON.parse(options.input);
-      const response = await fetch(
-        `${config.api.baseUrl}/api/workflows/${workflowName}/execute`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ triggerData: input }),
-        },
-      );
-      const result = await response.json();
-
-      spinner.succeed(chalk.green.bold("✅ Workflow completed"));
-      console.log();
-      console.log(chalk.cyan.bold("Result:"));
-      console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
-      console.log(chalk.gray(JSON.stringify(result, null, 2)));
-      console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
-      console.log();
-    } catch (error) {
-      if (error instanceof SyntaxError) {
-        spinner.fail(chalk.red.bold("✖ Invalid JSON input"));
+      // Prepare input data
+      let inputData: Record<string, unknown>;
+      if (options.input) {
+        try {
+          inputData = JSON.parse(options.input);
+        } catch (error) {
+          console.error(chalk.red("✖ Invalid JSON input"));
+          process.exit(1);
+        }
+      } else if (options.topic) {
+        // Convenience options for research-report workflow
+        inputData = {
+          topic: options.topic,
+          maxResults: parseInt(options.maxResults, 10),
+        };
       } else {
+        console.error(
+          chalk.red(
+            "✖ Please provide either --topic or --input with workflow data",
+          ),
+        );
+        console.log(
+          chalk.dim(
+            '\nExample: workflow researchReport --topic "graviton wave theory"',
+          ),
+        );
+        console.log(
+          chalk.dim(
+            'Example: workflow researchReport --input \'{"topic": "quantum flux capacitor", "maxResults": 5}\'',
+          ),
+        );
+        process.exit(1);
+      }
+
+      console.log(chalk.dim(`\n📋 Input data:`));
+      console.log(chalk.gray(JSON.stringify(inputData, null, 2)));
+      console.log();
+
+      // Execute workflow using Mastra Client SDK
+      const spinner = ora({
+        text: chalk.cyan("Executing workflow..."),
+        spinner: "dots",
+      }).start();
+
+      try {
+        // Use Mastra Client SDK to execute workflow
+        const workflow = mastraClient.getWorkflow(workflowName);
+        const run = await workflow.createRun();
+        
+        // Use startAsync to wait for workflow completion
+        const result = await run.startAsync({ inputData }) as any;
+
+        spinner.succeed(chalk.green.bold("✅ Workflow completed"));
+        console.log();
+        console.log(chalk.cyan.bold("📄 Result:"));
+        console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+
+        // Extract the workflow output from the result
+        // startAsync returns { status, steps, input, result }
+        // The workflow output is in result.result
+        const workflowOutput = result?.result;
+        
+        if (workflowOutput?.summary && workflowOutput?.report) {
+          // Success case - we have the expected output
+          console.log(chalk.green(`Status: ${chalk.bold(result.status || "success")}`));
+          
+          console.log();
+          console.log(chalk.cyan.bold("📝 Summary:"));
+          console.log(chalk.white(workflowOutput.summary));
+
+          console.log();
+          console.log(chalk.cyan.bold("📋 Full Report:"));
+          console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+          console.log(formatResponse("workflow", workflowOutput.report));
+        } else if (result?.status === "failed" || result?.error) {
+          // Error case
+          console.log(chalk.red(`Status: ${chalk.bold("failed")}`));
+          console.log(
+            chalk.red(
+              `Error: ${result.error?.message || result.error || "Unknown error"}`,
+            ),
+          );
+        } else {
+          // Unknown result structure - show what we got
+          console.log(chalk.yellow(`Status: ${chalk.bold(result?.status || "completed")}`));
+          console.log();
+          console.log(chalk.dim("Raw result:"));
+          console.log(chalk.gray(JSON.stringify(result, null, 2)));
+        }
+
+        console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+        console.log();
+      } catch (error) {
         spinner.fail(chalk.red.bold("✖ Workflow failed"));
         console.error(
-          chalk.red(error instanceof Error ? error.message : error),
+          chalk.red(error instanceof Error ? error.message : String(error)),
         );
+        process.exit(1);
       }
-      process.exit(1);
-    }
-  });
+    },
+  );
 
 program.parse();
