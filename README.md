@@ -512,6 +512,10 @@ pnpm run dev:cli workflow researchReport --topic "Micro-QFC specifications"
 # BioSynth Corporation
 pnpm run dev:cli workflow researchReport --topic "BioSynth products"
 pnpm run dev:cli workflow researchReport --topic "NeuralSync implant features"
+
+# Cross-Domain Research (discovers subtle connections)
+pnpm run dev:cli workflow researchReport --topic "BioSynth and Quantum Flux Capacitor collaboration"
+pnpm run dev:cli workflow researchReport --topic "biological synthesis of quantum materials"
 ```
 
 ### Workflow via HTTP API
