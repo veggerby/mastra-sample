@@ -13,6 +13,7 @@ catalog:
   "@mastra/observability": ^1.0.4
   "@mastra/otel-exporter": ^1.0.4
   "@mastra/pg": ^1.0.0
+  "@mastra/rag": ^1.0.4
   "@modelcontextprotocol/sdk": ^1.24.3
   "@opentelemetry/api": ^1.9.0
   "@opentelemetry/auto-instrumentations-node": ^0.67.2

@@ -9,14 +9,13 @@ import {
   convertUnitsToMetricTool,
   convertUnitsToImperialTool,
 } from "../mastra/tools/unit-conversion-tools.js";
-import {
-  queryKnowledgeTool,
-  addKnowledgeTool,
-} from "../mastra/tools/rag-tools.js";
+import { queryKnowledgeTool } from "../mastra/tools/rag-tools.js";
+import { createMemory } from "../memory.js";
 
 /**
  * General Agent - Handles general conversation and non-specialized queries
  * Equipped with time and unit conversion utilities, plus RAG knowledge base access
+ * Uses memory for conversation continuity and context retention
  */
 const persona = loadPersona();
 
@@ -25,23 +24,22 @@ export const generalAgent = new Agent({
   name: "general",
   instructions: `${persona.systemPrompt}
 
-You have access to a knowledge base with information about:
-- Mastra framework and its features
-- AI agent best practices
-- RAG (Retrieval-Augmented Generation) implementation
-- TypeScript development patterns
-- Vector databases and embeddings
+You have access to a knowledge base with information, as well as tools for getting the current time in UTC, converting UTC timestamps to specific timezones, and converting units between metric and imperial systems.
 
-When users ask about these topics, use the query-knowledge-base tool to retrieve 
-accurate information before responding. This ensures your answers are grounded in 
-factual knowledge rather than just your training data.`,
+You also have memory capabilities:
+- Recent conversation history for continuity
+- Working memory to remember user preferences and facts
+- Semantic recall to retrieve relevant past conversations
+
+Use these capabilities to provide context-aware, personalized responses.
+`,
   model: openai("gpt-4o-mini"),
+  memory: createMemory(), // Default memory configuration
   tools: {
     "get-current-time-utc": getCurrentTimeUTCTool,
     "convert-utc-to-timezone": convertUTCToTimezoneTool,
     "convert-units-to-metric": convertUnitsToMetricTool,
     "convert-units-to-imperial": convertUnitsToImperialTool,
     "query-knowledge-base": queryKnowledgeTool,
-    "add-knowledge": addKnowledgeTool,
   },
 });

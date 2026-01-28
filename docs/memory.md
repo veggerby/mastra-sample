@@ -5,6 +5,7 @@ This guide explains how to use Mastra's memory and RAG (Retrieval-Augmented Gene
 ## Overview
 
 Mastra provides built-in support for:
+
 - **Persistent Memory**: Store and retrieve conversation history across sessions
 - **Working Memory**: Maintain context and key facts within a thread
 - **Semantic Search**: Use vector embeddings for intelligent context retrieval
@@ -56,6 +57,7 @@ pnpm run dev:cli -- chat general -m "How do I implement RAG in my application?"
 ```
 
 The knowledge base is automatically seeded with information about:
+
 - Mastra framework and its features
 - AI agent best practices
 - RAG implementation patterns
@@ -190,25 +192,167 @@ async function seedCustomKB() {
 
 ## Architecture
 
+### Memory Configuration Pattern
+
+This project uses a consistent, centralized approach to memory configuration via `src/agent/src/memory.ts`, similar to how RAG is configured.
+
+#### Storage Setup
+
+The memory module automatically detects and configures the appropriate storage backend:
+
+```typescript
+// src/agent/src/memory.ts
+import { LibSQLStore } from "@mastra/libsql";
+import { PgStore } from "@mastra/pg";
+
+// Auto-detect based on DATABASE_URL
+const storage = await createStorage(databaseUrl);
+// - PostgreSQL: Uses PgStore
+// - LibSQL: Uses LibSQLStore
+```
+
+The storage is registered at the **Mastra instance level** for sharing across all agents:
+
+```typescript
+// src/agent/src/mastra.ts
+import { storage } from "./memory.js";
+
+export const mastra = new Mastra({
+  storage, // Shared across all agents
+  // ...
+});
+```
+
+#### Memory Helper Functions
+
+The module provides three helper functions for consistent memory setup:
+
+**1. Default Memory (`createMemory`)**
+
+```typescript
+import { createMemory } from "./memory.js";
+
+const memory = createMemory(); 
+// - lastMessages: 20
+// - workingMemory: enabled, 2000 tokens
+// - semanticRecall: enabled, limit 5
+```
+
+**2. Basic Memory (`createBasicMemory`)**
+
+```typescript
+import { createBasicMemory } from "./memory.js";
+
+const memory = createBasicMemory(30); 
+// - lastMessages: 30 (message history only)
+// - workingMemory: disabled
+// - semanticRecall: disabled
+```
+
+**3. Advanced Memory (`createAdvancedMemory`)**
+
+```typescript
+import { createAdvancedMemory } from "./memory.js";
+
+const memory = createAdvancedMemory();
+// - lastMessages: 50
+// - workingMemory: enabled, 4000 tokens  
+// - semanticRecall: enabled, limit 10
+```
+
+#### Memory Types Explained
+
+**Message History**: Recent conversation messages for continuity
+
+```typescript
+{ lastMessages: 20 } // Keep last 20 messages
+```
+
+**Working Memory**: Persistent user-specific details (name, preferences, goals)
+
+```typescript
+{ 
+  workingMemory: { 
+    enabled: true, 
+    maxTokens: 2000 
+  } 
+}
+```
+
+**Semantic Recall**: Retrieve older messages based on semantic relevance
+
+```typescript
+{ 
+  semanticRecall: { 
+    enabled: true, 
+    limit: 5,      // Max messages to retrieve
+    minScore: 0.7  // Similarity threshold
+  } 
+}
+```
+
+#### Agent Examples
+
+**Memory Agent (Advanced Configuration)**
+
+```typescript
+import { createAdvancedMemory } from "../memory.js";
+
+const memory = createAdvancedMemory({
+  lastMessages: 30,
+  workingMemory: { enabled: true, maxTokens: 3000 },
+  semanticRecall: { enabled: true, limit: 8, minScore: 0.65 },
+});
+
+export const memoryAgent = new Agent({
+  id: "memory",
+  memory,
+  tools: { queryKnowledgeTool }, // Also has RAG
+});
+```
+
+**General Agent (Default Configuration)**
+
+```typescript
+import { createMemory } from "../memory.js";
+
+export const generalAgent = new Agent({
+  id: "general",
+  memory: createMemory(), // Standard configuration
+  tools: { /* ... */ },
+});
+```
+
+**Router Agent (No Memory)**
+
+```typescript
+export const routerAgent = new Agent({
+  id: "router",
+  // No memory needed - just routes to other agents
+});
+```
+
 ### Current Implementation (LibSQL)
 
 By default, the sample uses **LibSQL** (SQLite) for storage:
 
 ```typescript
-// src/agent/src/mastra.ts
+// Configured automatically in src/agent/src/memory.ts
 const storage = new LibSQLStore({
-  id: "mastra-store",
+  id: "mastra-storage",
   url: process.env.DATABASE_URL || "file:./data/app.db",
 });
 ```
 
 **Benefits of LibSQL:**
+
 - ✅ Zero configuration - works out of the box
 - ✅ File-based storage - easy to backup and version
 - ✅ Perfect for development and prototyping
 - ✅ No external dependencies
 
 **Limitations:**
+
 - ❌ No built-in vector search (semantic similarity)
 - ❌ Not suitable for high-concurrency production workloads
 - ❌ Limited to single-server deployments
@@ -222,6 +366,7 @@ For production workloads with semantic search capabilities, use **PostgreSQL wit
 ### Why pgvector?
 
 **pgvector** is a PostgreSQL extension for vector similarity search. It enables:
+
 - 🔍 Semantic search across conversation history
 - 🚀 Fast nearest-neighbor queries for context retrieval
 - 📊 Production-grade scalability and reliability
@@ -230,23 +375,26 @@ For production workloads with semantic search capabilities, use **PostgreSQL wit
 ### Prerequisites
 
 1. PostgreSQL 12+ installed
-2. pgvector extension (install from https://github.com/pgvector/pgvector)
+2. pgvector extension (install from <https://github.com/pgvector/pgvector>)
 
 ### Installation Steps
 
 #### 1. Install pgvector Extension
 
 **On Ubuntu/Debian:**
+
 ```bash
 sudo apt install postgresql-14-pgvector
 ```
 
 **On macOS (Homebrew):**
+
 ```bash
 brew install pgvector
 ```
 
 **On Docker:**
+
 ```bash
 docker run -d \
   --name mastra-postgres \
@@ -265,6 +413,7 @@ CREATE EXTENSION vector;
 ```
 
 Verify installation:
+
 ```sql
 SELECT * FROM pg_extension WHERE extname = 'vector';
 ```
@@ -532,6 +681,7 @@ CREATE INDEX ON message_embeddings USING ivfflat (embedding vector_cosine_ops) W
 ### "Module not found: @mastra/memory"
 
 Ensure dependencies are installed:
+
 ```bash
 pnpm install
 ```
@@ -549,6 +699,7 @@ psql -d mastra -c "SELECT * FROM pg_available_extensions WHERE name = 'vector';"
 ### Embedding API Errors
 
 Check your OpenAI API key:
+
 ```bash
 # Verify key is set
 echo $OPENAI_API_KEY
@@ -583,16 +734,19 @@ With `text-embedding-3-small` ($0.02 / 1M tokens):
 - Monthly cost: ~$0.006 (negligible)
 
 For 1M messages:
+
 - Cost: ~$2.00/month
 
 ### Storage Costs
 
 **LibSQL (Local):**
+
 - Storage: Free (local disk)
 - ~1KB per message
 - 1M messages ≈ 1GB
 
 **PostgreSQL (Cloud):**
+
 - Example (AWS RDS): $15-50/month for small instance
 - Storage: $0.10/GB/month
 - 1M messages with embeddings ≈ 5-10GB ≈ $0.50-1.00/month
@@ -690,5 +844,6 @@ When migrating from LibSQL to PostgreSQL:
 ## Support
 
 For issues or questions:
+
 - GitHub Issues: [veggerby/mastra-sample/issues](https://github.com/veggerby/mastra-sample/issues)
 - Mastra Discord: [Join here](https://discord.gg/mastra)
