@@ -1,10 +1,18 @@
 # Mastra CLI
 
-A command-line interface for interacting with Mastra agents.
+A command-line interface for interacting with Mastra agents using the **Mastra Client SDK**.
+
+## Features
+
+- 🤖 **Type-safe agent interactions** using `@mastra/client-js`
+- 💬 **Interactive chat sessions** with conversation memory
+- 🌤️ **Quick weather queries** via specialized agents
+- 📋 **Thread management** for conversation continuity
+- ⚙️ **Workflow execution** support
 
 ## Installation
 
-The CLI is already installed with the project dependencies.
+The CLI is already installed with the project dependencies, including the Mastra Client SDK.
 
 ## Usage
 
@@ -45,12 +53,42 @@ npm run cli -- chat --thread cli-1234567890
 #### Single Message Mode
 
 ```bash
-# Send a single message to an agent
+# Send a single message to an agent (streaming enabled by default)
 npm run cli -- chat general -m "Hello, how are you?"
 npm run cli -- chat weather -m "What's the weather in Paris?"
 
 # Send a message and continue thread
 npm run cli -- chat router -m "Tell me a joke" -t my-thread-123
+
+# Disable streaming for blocking mode (get full response at once)
+npm run cli -- chat general -m "Hello" --no-stream
+```
+
+#### Streaming Mode
+
+**Streaming is enabled by default** for real-time responses. You'll see:
+
+- 🌊 Token-by-token output as the agent generates responses
+- 🔧 Progress indicators when agents use tools
+- ⚡ Faster perceived response time with immediate feedback
+
+```bash
+# Streaming is default (explicit flag not needed)
+npm run cli -- chat router -m "What is quantum entanglement?"
+
+# Enable streaming explicitly
+npm run cli -- chat general -m "Explain AI" --stream
+
+# Disable streaming to wait for complete response
+npm run cli -- chat general -m "Explain AI" --no-stream
+```
+
+**Progress Updates:** When agents use tools or perform multi-step reasoning, you'll see real-time status indicators:
+
+```
+🤖 router: Let me search the knowledge base for information about quantum physics...
+   🔧 [Tools: queryKnowledge]
+The knowledge base contains information about graviton wave theory...
 ```
 
 ### Weather Commands

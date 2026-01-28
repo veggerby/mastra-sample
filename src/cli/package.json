@@ -17,6 +17,7 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@mastra/client-js": "catalog:",
     "commander": "catalog:",
     "dotenv": "catalog:"
   },

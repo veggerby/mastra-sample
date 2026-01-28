@@ -2,44 +2,20 @@
 import "dotenv/config";
 import { Command } from "commander";
 import readline from "node:readline";
+import { MastraClient } from "@mastra/client-js";
 
 const program = new Command();
 const API_BASE_URL = process.env.API_URL || "http://localhost:3000";
 
-// Type for API responses
-interface AgentResponse {
-  text?: string;
-  content?: string;
-  response?: string;
-  message?: string;
-}
+// Initialize Mastra Client
+const mastraClient = new MastraClient({
+  baseUrl: API_BASE_URL,
+});
 
 program
   .name("mastra-cli")
-  .description("CLI for interacting with Mastra agents via API")
+  .description("CLI for interacting with Mastra agents via Mastra Client SDK")
   .version("0.1.0");
-
-// Helper function to make API requests
-async function apiRequest(
-  endpoint: string,
-  options: RequestInit = {},
-): Promise<AgentResponse> {
-  const url = `${API_BASE_URL}${endpoint}`;
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API request failed: ${response.status} - ${error}`);
-  }
-
-  return response.json() as Promise<AgentResponse>;
-}
 
 // Chat with an agent
 program
@@ -55,36 +31,57 @@ program
     "Send a single message instead of interactive mode",
   )
   .option("-t, --thread <threadId>", "Thread ID to continue conversation")
+  .option("-s, --stream", "Enable streaming responses for real-time output")
   .action(
     async (
       agentName: string,
-      options: { message?: string; thread?: string },
+      options: { message?: string; thread?: string; stream?: boolean },
     ) => {
       const threadId = options.thread || `cli-${Date.now()}`;
+      const useStreaming = options.stream ?? true; // Default to streaming
 
       if (options.message) {
         // Single message mode
         console.log(`\n💬 Sending to ${agentName}...`);
         try {
-          const result = await apiRequest(`/api/agents/${agentName}/generate`, {
-            method: "POST",
-            body: JSON.stringify({
-              messages: [{ role: "user", content: options.message }],
-              resourceid: threadId,
-            }),
-          });
+          const agent = mastraClient.getAgent(agentName);
 
-          // Extract text from Mastra response
-          const responseText =
-            result.text ||
-            result.content ||
-            result.response ||
-            JSON.stringify(result);
-          console.log(`\n🤖 ${agentName}:`, responseText);
-          console.log(`\n📋 Thread ID: ${threadId}`);
+          if (useStreaming) {
+            // Streaming mode
+            process.stdout.write(`\n🤖 ${agentName}: `);
+            const stream = await agent.stream(options.message, {
+              resourceId: threadId,
+            });
+
+            const toolsUsed = new Set<string>();
+            await stream.processDataStream({
+              onChunk: async (chunk) => {
+                if (chunk.type === "text-delta" && chunk.payload?.text) {
+                  process.stdout.write(chunk.payload.text);
+                } else if (
+                  chunk.type === "tool-call" &&
+                  chunk.payload?.toolName
+                ) {
+                  toolsUsed.add(chunk.payload.toolName);
+                } else if (chunk.type === "step-finish" && toolsUsed.size > 0) {
+                  process.stdout.write(
+                    `\n   🔧 [Tools: ${Array.from(toolsUsed).join(", ")}]`,
+                  );
+                }
+              },
+            });
+            console.log(`\n\n📋 Thread ID: ${threadId}`);
+          } else {
+            // Non-streaming mode
+            const response = await agent.generate(options.message, {
+              resourceId: threadId,
+            });
+            console.log(`\n🤖 ${agentName}:`, response.text);
+            console.log(`\n📋 Thread ID: ${threadId}`);
+          }
         } catch (error) {
           console.error(
-            "❌ Error:",
+            "\n❌ Error:",
             error instanceof Error ? error.message : error,
           );
           process.exit(1);
@@ -93,6 +90,9 @@ program
         // Interactive mode
         console.log(`\n🤖 Starting chat with ${agentName} agent`);
         console.log(`📋 Thread ID: ${threadId}`);
+        console.log(
+          `${useStreaming ? "🌊 Streaming mode enabled" : "📝 Standard mode"}\n`,
+        );
         console.log(
           'Type your message and press Enter. Type "exit" or "quit" to end.\n',
         );
@@ -120,27 +120,46 @@ program
           }
 
           try {
-            const result = await apiRequest(
-              `/api/agents/${agentName}/generate`,
-              {
-                method: "POST",
-                body: JSON.stringify({
-                  messages: [{ role: "user", content: input }],
-                  resourceid: threadId,
-                }),
-              },
-            );
+            const agent = mastraClient.getAgent(agentName);
 
-            // Extract text from Mastra response
-            const responseText =
-              result.text ||
-              result.content ||
-              result.response ||
-              JSON.stringify(result);
-            console.log(`\n🤖 ${agentName}:`, responseText, "\n");
+            if (useStreaming) {
+              // Streaming mode for interactive chat
+              process.stdout.write(`\n🤖 ${agentName}: `);
+              const stream = await agent.stream(input, {
+                resourceId: threadId,
+              });
+
+              const toolsUsed = new Set<string>();
+              await stream.processDataStream({
+                onChunk: async (chunk) => {
+                  if (chunk.type === "text-delta" && chunk.payload?.text) {
+                    process.stdout.write(chunk.payload.text);
+                  } else if (
+                    chunk.type === "tool-call" &&
+                    chunk.payload?.toolName
+                  ) {
+                    toolsUsed.add(chunk.payload.toolName);
+                  } else if (
+                    chunk.type === "step-finish" &&
+                    toolsUsed.size > 0
+                  ) {
+                    process.stdout.write(
+                      `\n   🔧 [Tools: ${Array.from(toolsUsed).join(", ")}]`,
+                    );
+                  }
+                },
+              });
+              console.log("\n");
+            } else {
+              // Non-streaming mode
+              const response = await agent.generate(input, {
+                resourceId: threadId,
+              });
+              console.log(`\n🤖 ${agentName}:`, response.text, "\n");
+            }
           } catch (error) {
             console.error(
-              "❌ Error:",
+              "\n❌ Error:",
               error instanceof Error ? error.message : error,
             );
           }
@@ -167,15 +186,12 @@ program
 
       try {
         const message = `What's the weather in ${location}${options.forecast ? " with forecast" : ""}?`;
-        const result = await apiRequest("/api/agents/weather/generate", {
-          method: "POST",
-          body: JSON.stringify({
-            messages: [{ role: "user", content: message }],
-            threadId: `weather-${Date.now()}`,
-          }),
+        const agent = mastraClient.getAgent("weather");
+        const response = await agent.generate(message, {
+          resourceId: `weather-${Date.now()}`,
         });
 
-        console.log(`\n${result.text || result.message}\n`);
+        console.log(`\n${response.text}\n`);
       } catch (error) {
         console.error(
           "❌ Error:",
@@ -192,8 +208,9 @@ program
   .description("List all available agents")
   .action(async () => {
     try {
-      // Try to get agent list from API
-      const result = await apiRequest("/api/agents");
+      // Use fetch for listing since SDK doesn't expose this
+      const response = await fetch(`${API_BASE_URL}/api/agents`);
+      const result = await response.json();
       console.log("\n🤖 Available agents:\n");
       if (Array.isArray(result)) {
         result.forEach((agent: { name?: string; id?: string }) => {
@@ -222,7 +239,8 @@ program
   .argument("<agent>", "Agent name")
   .action(async (agentName: string) => {
     try {
-      const result = await apiRequest(`/api/agents/${agentName}`);
+      const response = await fetch(`${API_BASE_URL}/api/agents/${agentName}`);
+      const result = await response.json();
       console.log(`\n🤖 Agent: ${agentName}\n`);
       console.log(JSON.stringify(result, null, 2));
       console.log();
@@ -267,13 +285,15 @@ program
 
     try {
       const input = JSON.parse(options.input);
-      const result = await apiRequest(
-        `/api/workflows/${workflowName}/execute`,
+      const response = await fetch(
+        `${API_BASE_URL}/api/workflows/${workflowName}/execute`,
         {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ triggerData: input }),
         },
       );
+      const result = await response.json();
 
       console.log("\n✅ Workflow completed");
       console.log("\nResult:");

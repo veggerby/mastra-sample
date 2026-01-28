@@ -42,17 +42,22 @@ pnpm run dev
 
 ### Usage
 
-Option 1: **Using the CLI (Recommended)**
+Option 1: **Using the CLI with Mastra Client SDK (Recommended)**
+
+The CLI uses the official **Mastra Client SDK** (`@mastra/client-js`) for type-safe, streamlined agent interactions with **streaming support enabled by default**.
 
 ```bash
 # List all available agents
 npm run cli -- list
 
-# Chat with an agent interactively
+# Chat with an agent interactively (streaming enabled)
 npm run cli -- chat router
 
-# Send a single message
+# Send a single message with real-time streaming
 npm run cli -- chat general -m "Hello!"
+
+# Disable streaming for blocking mode
+npm run cli -- chat general -m "Hello!" --no-stream
 
 # Chat with the memory-enabled agent (remembers context)
 npm run cli -- chat memory
@@ -66,6 +71,12 @@ npm run cli -- status
 # Get help
 npm run cli -- --help
 ```
+
+**Streaming Features:**
+
+- 🌊 Token-by-token real-time responses for faster perceived latency
+- 🔧 Progress indicators when agents use tools
+- ⚡ See agent reasoning as it happens
 
 See [CLI.md](CLI.md) for complete CLI documentation.
 

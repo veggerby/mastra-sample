@@ -146,10 +146,25 @@ curl -X POST http://localhost:3000/api/agents/router/generate \
   -H "Content-Type: application/json" \
   -d '{"messages": [{"role": "user", "content": "Hello!"}]}'
 
-# Test with CLI
+# Test with CLI (streaming enabled by default)
 pnpm run dev:cli -- chat router -m "What is the weather like?"
 pnpm run dev:cli -- list
+
+# Test streaming with tool calls
+pnpm run dev:cli -- chat general -m "What time is it in Tokyo?"
+
+# Test without streaming
+pnpm run dev:cli -- chat router -m "Hello" --no-stream
 ```
+
+**CLI Streaming Features:**
+
+- Real-time token-by-token responses using `agent.stream()`
+- Progress indicators when agents use tools (`🔧 [Tools: toolName]`)
+- Async chunk processing with `processDataStream({ onChunk })`
+- Handles `text-delta`, `tool-call`, and `step-finish` chunk types
+
+See `src/cli/src/index.ts` for streaming implementation details.
 
 ### CI/CD Checks
 
