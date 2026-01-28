@@ -25,50 +25,78 @@ export const queryKnowledgeTool = createTool({
       .describe("The search query or question to find relevant information"),
     topK: z
       .number()
+      .int()
+      .min(1)
+      .max(50)
       .optional()
-      .default(5)
-      .describe("Number of relevant results to return (default: 5)"),
+      .default(8)
+      .describe("Number of relevant results to return (default: 8)"),
     filter: z
       .string()
       .optional()
-      .describe("Optional metadata filter for advanced queries"),
+      .describe("Optional metadata filter (JSON string)"),
+    minScore: z
+      .number()
+      .min(0)
+      .max(1)
+      .optional()
+      .default(0)
+      .describe(
+        "Minimum similarity score (0-1) for returned results (default: 0)",
+      ),
   }),
   outputSchema: z.object({
     results: z.array(
       z.object({
-        content: z.string().describe("The relevant text content"),
-        score: z.number().describe("Similarity score (0-1)"),
-        metadata: z.record(z.any()).optional().describe("Document metadata"),
+        content: z.string(),
+        score: z.number(),
+        metadata: z.record(z.any()).optional(),
       }),
     ),
   }),
-  execute: async ({ queryText, topK, filter }) => {
+
+  execute: async ({ queryText, topK, filter, minScore }) => {
     const indexName = getKnowledgeIndexName();
 
-    // Generate embedding for the query
     const { embedding } = await embed({
       model: embeddingModel,
       value: queryText,
     });
 
-    // Parse filter if provided (should be JSON string)
     const parsedFilter = filter ? JSON.parse(filter) : undefined;
 
-    // Query the vector store
-    const results = await vector.query({
-      indexName,
-      queryVector: embedding,
-      topK: topK || 5,
-      filter: parsedFilter,
-    });
+    const queryOnce = async (ms: number) =>
+      vector.query({
+        indexName,
+        queryVector: embedding,
+        topK,
+        filter: parsedFilter,
+        minScore: ms,
+      });
 
-    // Format results
+    let results = await queryOnce(minScore ?? 0);
+
+    // Fallback: if too strict, retry with no threshold so we can still provide context
+    if ((!results || results.length === 0) && (minScore ?? 0) > 0) {
+      results = await queryOnce(0);
+    }
+
     return {
-      results: results.map((result) => ({
-        content: (result as any).content || result.metadata?.text || "",
-        score: result.score || 0,
-        metadata: result.metadata,
-      })),
+      results: results.map((r: any) => {
+        const content =
+          r.content ??
+          r.text ??
+          r.document?.pageContent ??
+          r.metadata?.content ??
+          r.metadata?.text ??
+          "";
+
+        return {
+          content,
+          score: r.score ?? 0,
+          metadata: r.metadata,
+        };
+      }),
     };
   },
 });

@@ -3,6 +3,7 @@ import { routerAgent, generalAgent, weatherAgent } from "./agents/index.js";
 import { logger } from "./logger.js";
 import { vector } from "./rag.js";
 import { storage } from "./memory.js";
+import { config } from "./config.js";
 
 logger.info("Initializing Mastra with agents and workflows");
 
@@ -18,7 +19,7 @@ export const mastra: Mastra = new Mastra({
     vector, // Vector store for RAG and semantic search
   },
   server: {
-    port: Number(process.env.PORT) || 3000,
+    port: config.server.port,
   },
 });
 

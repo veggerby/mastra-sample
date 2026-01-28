@@ -1,17 +1,10 @@
-import { config } from "dotenv";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import { LibSQLStore } from "@mastra/libsql";
 import { PostgresStore } from "@mastra/pg";
 import { Memory } from "@mastra/memory";
 
 import { logger } from "./logger.js";
 import { vector } from "./rag.js";
-
-// Load environment variables (may already be loaded by rag.ts)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-config({ path: join(__dirname, "../../../.env") });
+import { config } from "./config.js";
 
 /**
  * Memory Configuration for Mastra
@@ -74,9 +67,7 @@ export interface MemoryConfig {
   };
 }
 
-const databaseUrl =
-  process.env.DATABASE_URL ||
-  `file:${join(__dirname, "../../../data/memory.db")}`;
+const databaseUrl = config.database.url;
 
 /**
  * Create storage adapter based on database URL

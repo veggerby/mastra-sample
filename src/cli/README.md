@@ -9,6 +9,10 @@ A command-line interface for interacting with Mastra agents using the **Mastra C
 - 🌤️ **Quick weather queries** via specialized agents
 - 📋 **Thread management** for conversation continuity
 - ⚙️ **Workflow execution** support
+- 🎨 **Colorful output** using chalk for better readability
+- ⚡ **Loading spinners** and progress indicators with ora
+- 📦 **Beautiful boxes** and formatted output with boxen
+- 📏 **Responsive formatting** that adapts to terminal width
 
 ## Installation
 
@@ -85,10 +89,48 @@ npm run cli -- chat general -m "Explain AI" --no-stream
 
 **Progress Updates:** When agents use tools or perform multi-step reasoning, you'll see real-time status indicators:
 
-```
-🤖 router: Let me search the knowledge base for information about quantum physics...
-   🔧 [Tools: queryKnowledge]
+```txt
+🤖 general:
+   ⚡ Using tool: query-knowledge-base
+   ⚡ Using tool: convert-units-to-metric
 The knowledge base contains information about graviton wave theory...
+```
+
+**Debug Mode:** Set environment variables to see detailed tool information:
+
+```bash
+# Show tool arguments and results
+DEBUG_TOOLS=1 npm run cli -- chat general -m "convert 100F to celsius"
+
+# Show all chunk types from stream
+DEBUG_CHUNKS=1 npm run cli -- chat router -m "What's the weather?"
+```
+
+The CLI header will automatically display active debug flags and API configuration:
+
+```txt
+╭──────────────────────────────────────────────────────────╮
+│   🤖 Chat with general                                   │
+│   🌊 Streaming mode • Thread: cli-176959...              │
+│   ────────────────────────────────────────────────────   │
+│   API: http://localhost:3000 • Debug: TOOLS, CHUNKS      │
+╰──────────────────────────────────────────────────────────╯
+```
+
+Output with DEBUG_TOOLS:
+
+```txt
+   ⚡ Using tool: convert-units-to-metric
+      Args: {
+        "value": 100,
+        "unit": "fahrenheit"
+      }
+   ✓ Tool result:
+      {
+        "convertedValue": 37.78,
+        "convertedUnit": "celsius",
+        "formula": "(°F - 32) × 5/9 = °C"
+      }
 ```
 
 ### Weather Commands

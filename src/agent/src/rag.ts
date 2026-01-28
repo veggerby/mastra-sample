@@ -1,6 +1,3 @@
-import { config } from "dotenv";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import fs from "node:fs";
 import { PgVector } from "@mastra/pg";
 import { LibSQLVector } from "@mastra/libsql";
@@ -10,11 +7,8 @@ import { MDocument } from "@mastra/rag";
 import glob from "fast-glob";
 
 import { logger } from "./logger.js";
-
-// Load environment variables before creating embedding model
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-config({ path: join(__dirname, "../../../.env") });
+import { config } from "./config.js";
+import { join } from "node:path";
 
 /**
  * RAG (Retrieval-Augmented Generation) Configuration for Mastra
@@ -71,18 +65,14 @@ export interface RAGConfig {
   };
 }
 
-const databaseUrl =
-  process.env.DATABASE_URL || `file:${join(__dirname, "../../../data/rag.db")}`;
-
 /**
  * Default RAG configuration options
  * These can be overridden via environment variables or function parameters
  */
 export const defaultRAGConfig: RAGConfig = {
   indexName: "knowledgeBase",
-  knowledgeBasePath:
-    process.env.KNOWLEDGE_BASE_PATH || join(__dirname, "../../../knowledge/"),
-  databaseUrl,
+  knowledgeBasePath: config.knowledgeBase.path,
+  databaseUrl: config.database.vectorUrl,
   embeddingModel: {
     provider: "openai",
     model: "text-embedding-3-small",
@@ -198,7 +188,7 @@ const createVector = async (connectionString: string) => {
  * Shared vector storage instance for RAG functionality
  * Used by agents for semantic search across knowledge base
  */
-export const vector = await createVector(databaseUrl);
+export const vector = await createVector(config.database.vectorUrl);
 
 /**
  * Create embedding model for generating text embeddings
@@ -317,10 +307,22 @@ export async function seedVectorKnowledgeBase(config: Partial<RAGConfig> = {}) {
       metric: "cosine",
     });
 
-    // Upsert chunks with embeddings
+    // Prepare data for upsert: embeddings with content in metadata
+    const records = embeddings.map((embedding, index) => ({
+      id: `chunk-${index}`,
+      vector: embedding,
+      metadata: {
+        content: chunks[index].text,
+        source: chunks[index].metadata?.source || "unknown",
+      },
+    }));
+
+    // Upsert chunks with embeddings and metadata (content stored in metadata)
     await vector.upsert({
       indexName,
-      vectors: embeddings,
+      vectors: records.map((r) => r.vector),
+      metadata: records.map((r) => r.metadata),
+      ids: records.map((r) => r.id),
     });
 
     logger.info(

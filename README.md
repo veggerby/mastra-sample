@@ -100,17 +100,65 @@ npm run cli -- chat memory
 
 **RAG Knowledge Base:**
 
-```bash
-# Ask the general agent about technical topics
-npm run cli -- chat general -m "What is Mastra framework?"
+The general agent has access to a knowledge base seeded with technical documentation. Ask questions to see RAG in action:
 
-# The agent uses RAG tools to query a seeded knowledge base
-# for accurate information about:
-# - Mastra framework features
-# - AI agent best practices  
-# - RAG implementation
-# - TypeScript development
-# - Vector databases
+```bash
+# Query about Graviton Wave Theory (from knowledge base)
+npm run cli -- chat general -m "What is Graviton Wave Theory?"
+npm run cli -- chat general -m "Who discovered gravitons?"
+npm run cli -- chat general -m "What is the Thornfield Frequency?"
+
+# Query about Quantum Flux Capacitor technology
+npm run cli -- chat general -m "What is the size of a Micro-QFC?"
+npm run cli -- chat general -m "What is the energy density of a QFC?"
+npm run cli -- chat general -m "What applications use Quantum Flux Capacitors?"
+
+# Query about BioSynth products
+npm run cli -- chat general -m "What products does BioSynth offer?"
+npm run cli -- chat general -m "Tell me about BioSynth's services"
+
+# The agent uses RAG tools to query the seeded knowledge base
+# Documents in knowledge/:
+# - graviton-wave-theory.md (physics)
+# - quantum-flux-capacitor.md (energy technology)
+# - biosynth-products.md (biotechnology)
+```
+
+**Multi-Agent Coordination:**
+
+Use the router agent to coordinate multiple agents for complex queries:
+
+```bash
+# Router delegates to general (RAG) + weather agents
+npm run cli -- chat router -m "What is the location of BioSynth Corporation and what is the weather like there?"
+
+# The router will:
+# 1. Delegate to general agent → query knowledge base for BioSynth location
+# 2. Delegate to weather agent → get weather for that location
+# 3. Synthesize a complete response
+
+# You'll see delegation in action:
+#    ➤ Delegating to: general
+#    ➤ Delegating to: weather
+```
+
+**Debug RAG Queries:**
+
+See what the RAG tool is actually retrieving:
+
+```bash
+# Enable debug mode to see tool arguments and results
+DEBUG_TOOLS=1 npm run cli -- chat general -m "What is a Micro-QFC?"
+
+# Output will show:
+#    ⚡ Using tool: query-knowledge-base
+#       Args: { "queryText": "Micro-QFC size specifications", "topK": 5 }
+#    ✓ Tool result:
+#       {
+#         "results": [
+#           { "content": "...Micro-QFCs are 2mm³...", "score": 0.89 }
+#         ]
+#       }
 ```
 
 The knowledge base is automatically seeded when the server starts and agents can both query and expand it.

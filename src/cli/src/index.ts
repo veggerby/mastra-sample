@@ -3,14 +3,82 @@ import "dotenv/config";
 import { Command } from "commander";
 import readline from "node:readline";
 import { MastraClient } from "@mastra/client-js";
+import chalk from "chalk";
+import ora from "ora";
+import boxen from "boxen";
+import cliWidth from "cli-width";
+import { config } from "./config.js";
 
 const program = new Command();
-const API_BASE_URL = process.env.API_URL || "http://localhost:3000";
 
 // Initialize Mastra Client
 const mastraClient = new MastraClient({
-  baseUrl: API_BASE_URL,
+  baseUrl: config.api.baseUrl,
 });
+
+// Helper function to create a nice header
+function showHeader(title: string, subtitle?: string, showConfig = false) {
+  const width = Math.min(cliWidth(), 80);
+  let content = subtitle
+    ? `${chalk.bold.cyan(title)}\n${chalk.dim(subtitle)}`
+    : chalk.bold.cyan(title);
+
+  // Optionally add config info
+  if (showConfig) {
+    const configLines: string[] = [];
+    configLines.push(chalk.dim.gray(`API: ${config.api.baseUrl}`));
+    
+    const debugFlags: string[] = [];
+    if (config.debug.showChunks) debugFlags.push("CHUNKS");
+    if (config.debug.showTools) debugFlags.push("TOOLS");
+    
+    if (debugFlags.length > 0) {
+      configLines.push(chalk.dim.yellow(`Debug: ${debugFlags.join(", ")}`));
+    }
+    
+    if (configLines.length > 0) {
+      content += "\n" + chalk.dim("─".repeat(Math.min(width - 4, 56)));
+      content += "\n" + configLines.join(" • ");
+    }
+  }
+
+  console.log(
+    boxen(content, {
+      padding: 1,
+      margin: { top: 1, bottom: 1 },
+      borderStyle: "round",
+      borderColor: "cyan",
+      width: Math.min(width, 60),
+    }),
+  );
+}
+
+// Helper function to format agent responses
+function formatResponse(_agentName: string, text: string) {
+  const width = Math.min(cliWidth(), 80);
+  const lines = text.split("\n");
+  const formatted = lines
+    .map((line) => {
+      if (line.length <= width - 4) return line;
+      // Simple word wrap
+      const words = line.split(" ");
+      const wrapped: string[] = [];
+      let current = "";
+      for (const word of words) {
+        if ((current + " " + word).length <= width - 4) {
+          current = current ? current + " " + word : word;
+        } else {
+          if (current) wrapped.push(current);
+          current = word;
+        }
+      }
+      if (current) wrapped.push(current);
+      return wrapped.join("\n");
+    })
+    .join("\n");
+
+  return formatted;
+}
 
 program
   .name("mastra-cli")
@@ -42,65 +110,152 @@ program
 
       if (options.message) {
         // Single message mode
-        console.log(`\n💬 Sending to ${agentName}...`);
+        const spinner = ora({
+          text: chalk.cyan(`Connecting to ${chalk.bold(agentName)} agent...`),
+          spinner: "dots",
+        }).start();
+
         try {
           const agent = mastraClient.getAgent(agentName);
+          spinner.succeed(chalk.green(`Connected to ${chalk.bold(agentName)}`));
 
           if (useStreaming) {
             // Streaming mode
-            process.stdout.write(`\n🤖 ${agentName}: `);
+            console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+            process.stdout.write(chalk.blue.bold(`\n${agentName}:\n\n`));
             const stream = await agent.stream(options.message, {
               resourceId: threadId,
             });
 
-            const toolsUsed = new Set<string>();
             await stream.processDataStream({
               onChunk: async (chunk) => {
+                // Debug: log chunk types (can remove later)
+                if (config.debug.showChunks) {
+                  const toolName =
+                    "payload" in chunk &&
+                    chunk.payload &&
+                    typeof chunk.payload === "object" &&
+                    "toolName" in chunk.payload
+                      ? chunk.payload.toolName
+                      : "N/A";
+                  console.log(
+                    chalk.gray(
+                      `\n[DEBUG] Chunk type: ${chunk.type}, toolName: ${toolName}`,
+                    ),
+                  );
+                  if (chunk.type === "tool-call" && "payload" in chunk) {
+                    console.log(
+                      chalk.gray(
+                        `[DEBUG] Chunk payload: ${JSON.stringify(chunk.payload, null, 2)}`,
+                      ),
+                    );
+                  }
+                }
+
                 if (chunk.type === "text-delta" && chunk.payload?.text) {
                   process.stdout.write(chunk.payload.text);
                 } else if (
                   chunk.type === "tool-call" &&
                   chunk.payload?.toolName
                 ) {
-                  toolsUsed.add(chunk.payload.toolName);
-                } else if (chunk.type === "step-finish" && toolsUsed.size > 0) {
+                  // Differentiate between agent delegation and actual tool usage
+                  const toolName = chunk.payload.toolName;
+                  const args = (chunk.payload as any)?.args;
+
+                  if (toolName.startsWith("agent-")) {
+                    process.stdout.write(
+                      chalk.dim(
+                        `\n   ${chalk.cyan("➤")} ${chalk.italic("Delegating to:")} ${chalk.cyan(toolName.replace("agent-", ""))}\n\n`,
+                      ),
+                    );
+                  } else {
+                    let toolDisplay = `\n   ${chalk.yellow("⚡")} ${chalk.italic("Using tool:")} ${chalk.yellow(toolName)}`;
+
+                    // Show tool arguments if available and DEBUG_TOOLS is set
+                    if (config.debug.showTools && args) {
+                      toolDisplay += chalk.dim(
+                        `\n      Args: ${JSON.stringify(args, null, 2).split("\n").join("\n      ")}`,
+                      );
+                    }
+
+                    toolDisplay += "\n\n";
+                    process.stdout.write(chalk.dim(toolDisplay));
+                  }
+                } else if (
+                  chunk.type === "tool-result" &&
+                  (chunk.payload as any)?.result
+                ) {
+                  // Show tool results if DEBUG_TOOLS is enabled
+                  if (config.debug.showTools) {
+                    const result = (chunk.payload as any).result;
+                    const resultStr =
+                      typeof result === "string"
+                        ? result
+                        : JSON.stringify(result, null, 2);
+                    process.stdout.write(
+                      chalk.dim(
+                        `\n   ${chalk.green("✓")} ${chalk.italic("Tool result:")}\n      ${resultStr.split("\n").join("\n      ")}\n\n`,
+                      ),
+                    );
+                  }
+                } else if (
+                  chunk.type === "reasoning-delta" &&
+                  chunk.payload?.text
+                ) {
+                  // Show reasoning in a subtle way
+                  process.stdout.write(chalk.dim.italic(chunk.payload.text));
+                } else if (chunk.type === "reasoning-start") {
                   process.stdout.write(
-                    `\n   🔧 [Tools: ${Array.from(toolsUsed).join(", ")}]`,
+                    chalk.dim(
+                      `\n\n   ${chalk.magenta("🧠")} ${chalk.italic("Thinking...")}\n\n`,
+                    ),
                   );
                 }
               },
             });
-            console.log(`\n\n📋 Thread ID: ${threadId}`);
+
+            console.log("\n");
+            console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+            console.log(chalk.dim(`💾 Thread: ${threadId}`));
+            console.log();
           } else {
             // Non-streaming mode
             const response = await agent.generate(options.message, {
               resourceId: threadId,
             });
-            console.log(`\n🤖 ${agentName}:`, response.text);
-            console.log(`\n📋 Thread ID: ${threadId}`);
+            console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+            console.log(chalk.blue.bold(`\n${agentName}:\n`));
+            console.log(formatResponse(agentName, response.text));
+            console.log();
+            console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+            console.log(chalk.dim(`💾 Thread: ${threadId}`));
+            console.log();
           }
         } catch (error) {
+          spinner.fail(chalk.red.bold("Connection failed"));
           console.error(
-            "\n❌ Error:",
-            error instanceof Error ? error.message : error,
+            chalk.red.bold("\n✖ Error:"),
+            chalk.red(error instanceof Error ? error.message : error),
           );
           process.exit(1);
         }
       } else {
         // Interactive mode
-        console.log(`\n🤖 Starting chat with ${agentName} agent`);
-        console.log(`📋 Thread ID: ${threadId}`);
-        console.log(
-          `${useStreaming ? "🌊 Streaming mode enabled" : "📝 Standard mode"}\n`,
+        showHeader(
+          `🤖 Chat with ${agentName}`,
+          `${useStreaming ? "🌊 Streaming mode" : "📝 Standard mode"} • Thread: ${threadId.slice(0, 16)}...`,
+          true, // Show config info
         );
-        console.log(
-          'Type your message and press Enter. Type "exit" or "quit" to end.\n',
-        );
+
+        console.log(chalk.dim("  💡 Tips:"));
+        console.log(chalk.dim("     • Type your message and press Enter"));
+        console.log(chalk.dim('     • Type "exit" or "quit" to end'));
+        console.log(chalk.dim("     • Press Ctrl+C to cancel\n"));
 
         const rl = readline.createInterface({
           input: process.stdin,
           output: process.stdout,
-          prompt: "You: ",
+          prompt: chalk.green.bold("You ➤ "),
         });
 
         rl.prompt();
@@ -109,7 +264,15 @@ program
           const input = line.trim();
 
           if (input === "exit" || input === "quit") {
-            console.log("\n👋 Goodbye!");
+            console.log();
+            console.log(
+              boxen(chalk.cyan.bold("👋 Thanks for chatting!"), {
+                padding: { left: 2, right: 2, top: 0, bottom: 0 },
+                borderStyle: "round",
+                borderColor: "cyan",
+              }),
+            );
+            console.log();
             rl.close();
             process.exit(0);
           }
@@ -124,12 +287,12 @@ program
 
             if (useStreaming) {
               // Streaming mode for interactive chat
-              process.stdout.write(`\n🤖 ${agentName}: `);
+              console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+              process.stdout.write(chalk.blue.bold(`\n${agentName}:\n\n`));
               const stream = await agent.stream(input, {
                 resourceId: threadId,
               });
 
-              const toolsUsed = new Set<string>();
               await stream.processDataStream({
                 onChunk: async (chunk) => {
                   if (chunk.type === "text-delta" && chunk.payload?.text) {
@@ -138,29 +301,81 @@ program
                     chunk.type === "tool-call" &&
                     chunk.payload?.toolName
                   ) {
-                    toolsUsed.add(chunk.payload.toolName);
+                    // Differentiate between agent delegation and actual tool usage
+                    const toolName = chunk.payload.toolName;
+                    const args = (chunk.payload as any)?.args;
+
+                    if (toolName.startsWith("agent-")) {
+                      process.stdout.write(
+                        chalk.dim(
+                          `\n\n   ${chalk.cyan("➤")} ${chalk.italic("Delegating to:")} ${chalk.cyan(toolName.replace("agent-", ""))}\n\n`,
+                        ),
+                      );
+                    } else {
+                      let toolDisplay = `\n\n   ${chalk.yellow("⚡")} ${chalk.italic("Using tool:")} ${chalk.yellow(toolName)}`;
+
+                      // Show tool arguments if available and DEBUG_TOOLS is set
+                      if (config.debug.showTools && args) {
+                        toolDisplay += chalk.dim(
+                          `\n      Args: ${JSON.stringify(args, null, 2).split("\n").join("\n      ")}`,
+                        );
+                      }
+
+                      toolDisplay += "\n\n";
+                      process.stdout.write(chalk.dim(toolDisplay));
+                    }
                   } else if (
-                    chunk.type === "step-finish" &&
-                    toolsUsed.size > 0
+                    chunk.type === "tool-result" &&
+                    (chunk.payload as any)?.result
                   ) {
+                    // Show tool results if DEBUG_TOOLS is enabled
+                    if (config.debug.showTools) {
+                      const result = (chunk.payload as any).result;
+                      const resultStr =
+                        typeof result === "string"
+                          ? result
+                          : JSON.stringify(result, null, 2);
+                      process.stdout.write(
+                        chalk.dim(
+                          `\n   ${chalk.green("✓")} ${chalk.italic("Tool result:")}\n      ${resultStr.split("\n").join("\n      ")}\n\n`,
+                        ),
+                      );
+                    }
+                  } else if (
+                    chunk.type === "reasoning-delta" &&
+                    chunk.payload?.text
+                  ) {
+                    // Show reasoning in a subtle way
+                    process.stdout.write(chalk.dim.italic(chunk.payload.text));
+                  } else if (chunk.type === "reasoning-start") {
                     process.stdout.write(
-                      `\n   🔧 [Tools: ${Array.from(toolsUsed).join(", ")}]`,
+                      chalk.dim(
+                        `\n\n   ${chalk.magenta("🧠")} ${chalk.italic("Thinking...")}\n\n`,
+                      ),
                     );
                   }
                 },
               });
+
               console.log("\n");
+              console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+              console.log();
             } else {
               // Non-streaming mode
               const response = await agent.generate(input, {
                 resourceId: threadId,
               });
-              console.log(`\n🤖 ${agentName}:`, response.text, "\n");
+              console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+              console.log(chalk.blue.bold(`\n${agentName}:\n`));
+              console.log(formatResponse(agentName, response.text));
+              console.log();
+              console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+              console.log();
             }
           } catch (error) {
             console.error(
-              "\n❌ Error:",
-              error instanceof Error ? error.message : error,
+              chalk.red.bold("\n✖ Error:"),
+              chalk.red(error instanceof Error ? error.message : error),
             );
           }
 
@@ -182,7 +397,10 @@ program
       location: string,
       options: { forecast?: boolean; days?: string },
     ) => {
-      console.log(`\n🌤️  Getting weather for ${location}...`);
+      const spinner = ora({
+        text: chalk.cyan(`Getting weather for ${chalk.bold(location)}...`),
+        spinner: "weather",
+      }).start();
 
       try {
         const message = `What's the weather in ${location}${options.forecast ? " with forecast" : ""}?`;
@@ -191,11 +409,19 @@ program
           resourceId: `weather-${Date.now()}`,
         });
 
-        console.log(`\n${response.text}\n`);
+        spinner.succeed(chalk.green(`Weather for ${chalk.bold(location)}`));
+        console.log();
+        console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+        console.log();
+        console.log(formatResponse("weather", response.text));
+        console.log();
+        console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+        console.log();
       } catch (error) {
+        spinner.fail(chalk.red.bold("Failed to get weather"));
         console.error(
-          "❌ Error:",
-          error instanceof Error ? error.message : error,
+          chalk.red.bold("✖ Error:"),
+          chalk.red(error instanceof Error ? error.message : error),
         );
         process.exit(1);
       }
@@ -208,26 +434,54 @@ program
   .description("List all available agents")
   .action(async () => {
     try {
+      const spinner = ora("Loading agents...").start();
       // Use fetch for listing since SDK doesn't expose this
-      const response = await fetch(`${API_BASE_URL}/api/agents`);
+      const response = await fetch(`${config.api.baseUrl}/api/agents`);
       const result = await response.json();
-      console.log("\n🤖 Available agents:\n");
+      spinner.stop();
+
+      showHeader("🤖 Available Agents", "Choose an agent for your task");
+
       if (Array.isArray(result)) {
         result.forEach((agent: { name?: string; id?: string }) => {
-          console.log(`  • ${agent.name || agent.id}`);
+          console.log(chalk.cyan(`  ● ${chalk.bold(agent.name || agent.id)}`));
         });
       } else {
         // Fallback to known agents
-        console.log("  • router");
-        console.log("  • general");
-        console.log("  • weather");
+        console.log(
+          chalk.cyan(
+            `  ● ${chalk.bold("router")} ${chalk.dim("- Intelligent task routing")}`,
+          ),
+        );
+        console.log(
+          chalk.cyan(
+            `  ● ${chalk.bold("general")} ${chalk.dim("- General conversation & knowledge")}`,
+          ),
+        );
+        console.log(
+          chalk.cyan(
+            `  ● ${chalk.bold("weather")} ${chalk.dim("- Weather information")}`,
+          ),
+        );
       }
       console.log();
     } catch (_error) {
-      console.log("\n🤖 Available agents:\n");
-      console.log("  • router");
-      console.log("  • general");
-      console.log("  • weather");
+      showHeader("🤖 Available Agents", "Choose an agent for your task");
+      console.log(
+        chalk.cyan(
+          `  ● ${chalk.bold("router")} ${chalk.dim("- Intelligent task routing")}`,
+        ),
+      );
+      console.log(
+        chalk.cyan(
+          `  ● ${chalk.bold("general")} ${chalk.dim("- General conversation & knowledge")}`,
+        ),
+      );
+      console.log(
+        chalk.cyan(
+          `  ● ${chalk.bold("weather")} ${chalk.dim("- Weather information")}`,
+        ),
+      );
       console.log();
     }
   });
@@ -238,15 +492,25 @@ program
   .description("Get detailed information about an agent")
   .argument("<agent>", "Agent name")
   .action(async (agentName: string) => {
+    const spinner = ora(`Loading ${agentName} agent info...`).start();
     try {
-      const response = await fetch(`${API_BASE_URL}/api/agents/${agentName}`);
+      const response = await fetch(
+        `${config.api.baseUrl}/api/agents/${agentName}`,
+      );
       const result = await response.json();
-      console.log(`\n🤖 Agent: ${agentName}\n`);
-      console.log(JSON.stringify(result, null, 2));
+      spinner.succeed(chalk.green(`Agent info for ${chalk.bold(agentName)}`));
+
+      console.log();
+      console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+      console.log(chalk.gray(JSON.stringify(result, null, 2)));
+      console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
       console.log();
     } catch (error) {
-      console.error(`❌ Agent '${agentName}' not found or error occurred`);
-      console.error("Error:", error instanceof Error ? error.message : error);
+      spinner.fail(chalk.red.bold(`Agent '${agentName}' not found`));
+      console.error(
+        chalk.red("Error:"),
+        chalk.red(error instanceof Error ? error.message : error),
+      );
       process.exit(1);
     }
   });
@@ -255,22 +519,41 @@ program
 program
   .command("status")
   .description("Check if the Mastra API server is running")
-  .option("-p, --port <port>", "Port number", process.env.PORT || "3000")
+  .option("-p, --port <port>", "Port number", String(config.api.port))
   .action(async (options: { port: string }) => {
     const baseUrl = `http://localhost:${options.port}`;
+    const spinner = ora("Checking server status...").start();
+
     try {
       const response = await fetch(`${baseUrl}/health`);
       if (response.ok) {
         const data = await response.json();
-        console.log("✅ Server is running");
-        console.log(`🌐 API: ${baseUrl}/api`);
-        console.log("Status:", data);
+        spinner.succeed(chalk.green.bold("✅ Server is running"));
+
+        console.log(
+          boxen(
+            chalk.cyan(`🌐 API: ${chalk.bold(baseUrl + "/api")}\n`) +
+              chalk.dim(`Status: ${JSON.stringify(data)}`),
+            {
+              padding: 1,
+              margin: { top: 0, bottom: 1 },
+              borderStyle: "round",
+              borderColor: "green",
+            },
+          ),
+        );
       } else {
-        console.log("⚠️  Server responded but not healthy");
+        spinner.warn(chalk.yellow.bold("⚠️  Server responded but not healthy"));
       }
     } catch (_error) {
-      console.log("❌ Server is not running");
-      console.log(`Run 'npm run dev:agent' to start the server`);
+      spinner.fail(chalk.red.bold("✖ Server is not running"));
+      console.log();
+      console.log(
+        chalk.dim(
+          `  Run ${chalk.cyan("npm run dev:agent")} to start the server`,
+        ),
+      );
+      console.log();
     }
   });
 
@@ -281,12 +564,15 @@ program
   .argument("<name>", "Workflow name")
   .option("-i, --input <json>", "Input data as JSON string", "{}")
   .action(async (workflowName: string, options: { input: string }) => {
-    console.log(`\n⚙️  Running workflow: ${workflowName}`);
+    const spinner = ora({
+      text: chalk.cyan(`Running workflow: ${chalk.bold(workflowName)}`),
+      spinner: "dots",
+    }).start();
 
     try {
       const input = JSON.parse(options.input);
       const response = await fetch(
-        `${API_BASE_URL}/api/workflows/${workflowName}/execute`,
+        `${config.api.baseUrl}/api/workflows/${workflowName}/execute`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -295,16 +581,20 @@ program
       );
       const result = await response.json();
 
-      console.log("\n✅ Workflow completed");
-      console.log("\nResult:");
-      console.log(JSON.stringify(result, null, 2));
+      spinner.succeed(chalk.green.bold("✅ Workflow completed"));
+      console.log();
+      console.log(chalk.cyan.bold("Result:"));
+      console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+      console.log(chalk.gray(JSON.stringify(result, null, 2)));
+      console.log(chalk.dim("─".repeat(Math.min(cliWidth(), 80))));
+      console.log();
     } catch (error) {
       if (error instanceof SyntaxError) {
-        console.error("❌ Invalid JSON input");
+        spinner.fail(chalk.red.bold("✖ Invalid JSON input"));
       } else {
+        spinner.fail(chalk.red.bold("✖ Workflow failed"));
         console.error(
-          "❌ Error executing workflow:",
-          error instanceof Error ? error.message : error,
+          chalk.red(error instanceof Error ? error.message : error),
         );
       }
       process.exit(1);
