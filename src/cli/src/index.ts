@@ -9,6 +9,26 @@ import boxen from "boxen";
 import cliWidth from "cli-width";
 import { config } from "./config.js";
 
+/**
+ * Type definition for workflow execution result
+ * This matches the structure returned by Mastra Client SDK's startAsync method
+ */
+interface WorkflowExecutionResult {
+  status?: string;
+  steps?: unknown[];
+  input?: unknown;
+  result?: {
+    summary?: string;
+    report?: string;
+    [key: string]: unknown;
+  };
+  error?: {
+    message?: string;
+    [key: string]: unknown;
+  } | string;
+  [key: string]: unknown;
+}
+
 const program = new Command();
 
 // Initialize Mastra Client
@@ -626,7 +646,8 @@ program
         const run = await workflow.createRun();
         
         // Use startAsync to wait for workflow completion
-        const result = await run.startAsync({ inputData }) as any;
+        // Using unknown to handle the complex type from Mastra SDK
+        const result = await run.startAsync({ inputData }) as unknown as WorkflowExecutionResult;
 
         spinner.succeed(chalk.green.bold("✅ Workflow completed"));
         console.log();
@@ -653,10 +674,11 @@ program
         } else if (result?.status === "failed" || result?.error) {
           // Error case
           console.log(chalk.red(`Status: ${chalk.bold("failed")}`));
+          const errorMessage = typeof result.error === 'string' 
+            ? result.error 
+            : result.error?.message || "Unknown error";
           console.log(
-            chalk.red(
-              `Error: ${result.error?.message || result.error || "Unknown error"}`,
-            ),
+            chalk.red(`Error: ${errorMessage}`),
           );
         } else {
           // Unknown result structure - show what we got

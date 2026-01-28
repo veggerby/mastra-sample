@@ -4,6 +4,23 @@ import { embed } from "ai";
 import { vector, embeddingModel, getKnowledgeIndexName } from "../../rag.js";
 
 /**
+ * Type definition for vector query results
+ * This matches the structure returned by both PgVector and LibSQLVector
+ */
+interface VectorQueryResult {
+  content?: string;
+  text?: string;
+  document?: string;
+  metadata?: {
+    content?: string;
+    text?: string;
+    [key: string]: unknown;
+  };
+  score?: number;
+  [key: string]: unknown;
+}
+
+/**
  * Research Report Workflow
  *
  * This workflow demonstrates key Mastra workflow features:
@@ -53,11 +70,10 @@ const queryKnowledgeBaseStep = createStep({
 
     // Format findings from vector results
     const findings = results
-      .map((r, idx) => {
+      .map((r: VectorQueryResult, idx) => {
         // Access content from metadata field (LibSQL Vector format)
-        const rAny = r as any;
         const content =
-          rAny.metadata?.content ?? rAny.metadata?.text ?? rAny.document ?? "";
+          r.metadata?.content ?? r.metadata?.text ?? r.document ?? "";
         const score = r.score ?? 0;
         return `[${idx + 1}] (score: ${score.toFixed(2)})\n${content}`;
       })

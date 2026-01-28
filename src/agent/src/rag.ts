@@ -340,6 +340,15 @@ export async function seedVectorKnowledgeBase(config: Partial<RAGConfig> = {}) {
  * This runs automatically when the module is imported, seeding the vector
  * database asynchronously in the background.
  */
-seedVectorKnowledgeBase().catch((error) => {
-  logger.error({ error }, "Error during vector knowledge base initialization");
+logger.info(
+  "Initializing vector knowledge base seeding in the background on module load",
+);
+
+setImmediate(() => {
+  seedVectorKnowledgeBase().catch((error) => {
+    logger.error(
+      { error },
+      "Error during vector knowledge base initialization",
+    );
+  });
 });

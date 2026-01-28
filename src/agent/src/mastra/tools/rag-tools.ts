@@ -4,6 +4,25 @@ import { embed } from "ai";
 import { vector, embeddingModel, getKnowledgeIndexName } from "../../rag.js";
 
 /**
+ * Type definition for vector query results
+ * This matches the structure returned by both PgVector and LibSQLVector
+ */
+interface VectorQueryResult {
+  content?: string;
+  text?: string;
+  document?: {
+    pageContent?: string;
+  };
+  metadata?: {
+    content?: string;
+    text?: string;
+    [key: string]: unknown;
+  };
+  score?: number;
+  [key: string]: unknown;
+}
+
+/**
  * RAG Query Tool - Search the knowledge base using semantic vector search
  *
  * This tool provides semantic search capabilities across the knowledge base:
@@ -63,7 +82,16 @@ export const queryKnowledgeTool = createTool({
       value: queryText,
     });
 
-    const parsedFilter = filter ? JSON.parse(filter) : undefined;
+    let parsedFilter: unknown = undefined;
+    if (filter) {
+      try {
+        parsedFilter = JSON.parse(filter);
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : String(error);
+        throw new Error(`Invalid JSON in filter: ${message}`);
+      }
+    }
 
     const queryOnce = async (ms: number) =>
       vector.query({
@@ -82,7 +110,7 @@ export const queryKnowledgeTool = createTool({
     }
 
     return {
-      results: results.map((r: any) => {
+      results: results.map((r: VectorQueryResult) => {
         const content =
           r.content ??
           r.text ??

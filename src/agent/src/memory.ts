@@ -152,7 +152,7 @@ export const defaultMemoryOptions: MemoryConfig = {
  *   memory: createMemory({
  *     lastMessages: 50,
  *     semanticRecall: { topK: 10, minScore: 0.6 },
- *   }),,
+ *   }),
  * });
  * ```
  */
