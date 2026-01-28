@@ -17,8 +17,13 @@
     "clean": "rm -rf dist"
   },
   "dependencies": {
+    "@mastra/client-js": "catalog:",
+    "boxen": "catalog:",
+    "chalk": "catalog:",
+    "cli-width": "catalog:",
     "commander": "catalog:",
-    "dotenv": "catalog:"
+    "dotenv": "catalog:",
+    "ora": "catalog:"
   },
   "devDependencies": {
     "@eslint/js": "catalog:",

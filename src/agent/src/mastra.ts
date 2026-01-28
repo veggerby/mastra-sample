@@ -1,33 +1,29 @@
 import { Mastra } from "@mastra/core";
-import { LibSQLStore } from "@mastra/libsql";
 import { routerAgent, generalAgent, weatherAgent } from "./agents/index.js";
 import { logger } from "./logger.js";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// LibSQL storage for conversation threads
-const storage = new LibSQLStore({
-  id: "mastra-store",
-  url:
-    process.env.DATABASE_URL ||
-    `file:${join(__dirname, "../../../data/app.db")}`,
-});
+import { vector } from "./rag.js";
+import { storage } from "./memory.js";
+import { config } from "./config.js";
+import { researchReportWorkflow } from "./mastra/workflows/research-report-workflow.js";
 
 logger.info("Initializing Mastra with agents and workflows");
 
 // Create Mastra instance
-export const mastra = new Mastra({
+export const mastra: Mastra = new Mastra({
   agents: {
     router: routerAgent,
     general: generalAgent,
     weather: weatherAgent,
   },
-  storage,
+  workflows: {
+    researchReport: researchReportWorkflow,
+  },
+  storage, // Shared storage for conversation history and working memory
+  vectors: {
+    vector, // Vector store for RAG and semantic search
+  },
   server: {
-    port: Number(process.env.PORT) || 3000,
+    port: config.server.port,
   },
 });
 

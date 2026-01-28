@@ -4,7 +4,7 @@ import { z } from "zod";
 export const convertUnitsToMetricTool = createTool({
   id: "convert-units-to-metric",
   description:
-    "Convert imperial units to metric units (e.g., Fahrenheit to Celsius, miles to kilometers, pounds to kilograms)",
+    "Convert FROM imperial units TO metric units. Use this when you have imperial/US units (Fahrenheit, miles, feet, pounds, etc.) and need metric equivalents (Celsius, kilometers, meters, kilograms, etc.)",
   inputSchema: z.object({
     value: z.number().describe("The numeric value to convert"),
     unit: z
@@ -18,7 +18,9 @@ export const convertUnitsToMetricTool = createTool({
         "inches",
         "yards",
       ])
-      .describe("The imperial unit to convert from"),
+      .describe(
+        "The imperial/US unit you are converting FROM (input must be one of these imperial units)",
+      ),
   }),
   outputSchema: z.object({
     originalValue: z.number(),
@@ -89,7 +91,7 @@ export const convertUnitsToMetricTool = createTool({
 export const convertUnitsToImperialTool = createTool({
   id: "convert-units-to-imperial",
   description:
-    "Convert metric units to imperial units (e.g., Celsius to Fahrenheit, kilometers to miles, kilograms to pounds)",
+    "Convert FROM metric units TO imperial/US units. Use this when you have metric units (Celsius, kilometers, meters, kilograms, etc.) and need imperial equivalents (Fahrenheit, miles, feet, pounds, etc.)",
   inputSchema: z.object({
     value: z.number().describe("The numeric value to convert"),
     unit: z
@@ -102,7 +104,9 @@ export const convertUnitsToImperialTool = createTool({
         "meters",
         "centimeters",
       ])
-      .describe("The metric unit to convert from"),
+      .describe(
+        "The metric unit you are converting FROM (input must be one of these metric units)",
+      ),
   }),
   outputSchema: z.object({
     originalValue: z.number(),

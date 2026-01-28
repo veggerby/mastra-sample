@@ -8,7 +8,10 @@ import { getWeatherTool } from "../mastra/tools/weather-tools.js";
  */
 export const weatherAgent = new Agent({
   id: "weather",
-  name: "weather",
+  name: "Weather Agent",
+  description: `Retrieves real-time weather information for any location.
+    Uses the wttr.in API to fetch current conditions, temperature, humidity, and wind data.
+    Use this agent whenever the user asks about weather, forecasts, or climate conditions.`,
   instructions: `You are a weather expert assistant with access to real-time weather data through the get-weather tool.
 
 CRITICAL: You MUST use the get-weather tool for ALL weather queries. DO NOT make up or guess weather information.

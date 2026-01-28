@@ -1,17 +1,11 @@
-import { config } from "dotenv";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
 import express from "express";
 import { MastraServer } from "@mastra/express";
 import { mastra } from "./mastra.js";
 import { logger } from "./logger.js";
+import { config as appConfig, validateConfig } from "./config.js";
 
-// Load .env from project root (3 levels up from this file)
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-config({ path: join(__dirname, "../../../.env") });
-
-const PORT = process.env.PORT || 3000;
+// Validate configuration at startup
+validateConfig();
 
 async function main() {
   try {
@@ -29,10 +23,13 @@ async function main() {
       next();
     });
 
-    app.listen(PORT, () => {
-      logger.info({ port: PORT }, "Server started successfully");
-      logger.info(`Health: http://localhost:${PORT}/health`);
-      logger.info(`API: http://localhost:${PORT}/api`);
+    app.listen(appConfig.server.port, () => {
+      logger.info(
+        { port: appConfig.server.port },
+        "Server started successfully",
+      );
+      logger.info(`Health: http://localhost:${appConfig.server.port}/health`);
+      logger.info(`API: http://localhost:${appConfig.server.port}/api`);
     });
   } catch (error) {
     logger.error(error, "Failed to start server");

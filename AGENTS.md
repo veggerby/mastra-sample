@@ -4,9 +4,11 @@
 
 This is a **Mastra TypeScript monorepo** that provides a multi-agent AI system with:
 
+- **Agent Networks**: Uses Mastra's agent network pattern for intelligent routing and coordination
 - **Agent API Server** (`src/agent/`): Express-based HTTP API exposing Mastra agents
 - **CLI Client** (`src/cli/`): Command-line interface for interacting with the agent API
-- **Multi-Agent Architecture**: Router agent delegates to specialized domain agents (general, weather)
+- **Multi-Agent Architecture**: Router agent uses LLM reasoning to delegate to specialized domain agents (general, weather)
+- **Memory & RAG**: Persistent conversation memory with vector-based semantic search and knowledge base retrieval
 - **MCP Integration**: Model Context Protocol server integration with tool allowlists
 - **Persona System**: YAML-based agent personality configuration
 - **Workflows**: Multi-step orchestrations with agent-as-step pattern
@@ -144,10 +146,25 @@ curl -X POST http://localhost:3000/api/agents/router/generate \
   -H "Content-Type: application/json" \
   -d '{"messages": [{"role": "user", "content": "Hello!"}]}'
 
-# Test with CLI
+# Test with CLI (streaming enabled by default)
 pnpm run dev:cli -- chat router -m "What is the weather like?"
 pnpm run dev:cli -- list
+
+# Test streaming with tool calls
+pnpm run dev:cli -- chat general -m "What time is it in Tokyo?"
+
+# Test without streaming
+pnpm run dev:cli -- chat router -m "Hello" --no-stream
 ```
+
+**CLI Streaming Features:**
+
+- Real-time token-by-token responses using `agent.stream()`
+- Progress indicators when agents use tools (`🔧 [Tools: toolName]`)
+- Async chunk processing with `processDataStream({ onChunk })`
+- Handles `text-delta`, `tool-call`, and `step-finish` chunk types
+
+See `src/cli/src/index.ts` for streaming implementation details.
 
 ### CI/CD Checks
 
@@ -475,10 +492,46 @@ Agent personalities are defined in `personas/` directory using YAML files. Edit 
 
 ### Agent Architecture
 
-- **Router Agent**: Analyzes requests and delegates to specialized agents
-- **General Agent**: Handles general conversation
+This project uses **Mastra's agent network pattern** for intelligent task coordination:
+
+- **Router Agent**: Network coordinator with LLM-powered routing
+  - Analyzes user requests using GPT-4o-mini
+  - Delegates to specialized agents based on descriptions and context
+  - Configured with sub-agents: general, weather
+  - Includes memory for task history and completion tracking
+  - Uses `.network()` method for execution
+
+- **General Agent**: Handles general conversation, knowledge queries, and utilities
+  - Description: "Handles general conversation, greetings, and knowledge base queries"
+  - Tools: Time operations (UTC, timezone conversion), unit conversions (metric/imperial)
+  - RAG: Vector-based knowledge base query tool
+  - Memory: Conversation history and semantic recall
+
 - **Weather Agent**: Domain-specific for weather queries
-- **Workflows**: Multi-step processes that can orchestrate multiple agents
+  - Description: "Retrieves real-time weather information for any location"
+  - Tools: Weather lookup via wttr.in API
+  - Returns: Current conditions, temperature, humidity, wind data
+
+**Network Routing Principles:**
+
+1. Each agent has a clear `description` that guides routing decisions
+2. Tools define `inputSchema` and `outputSchema` for type-safe execution
+3. The LLM selects primitives based on descriptions, schemas, and context
+4. More specific agents are favored when capabilities overlap
+5. Memory is required for network execution and tracks task completion
+
+**Example Network Flow:**
+
+```typescript
+// User request: "What's the weather and what time is it?"
+routerAgent.network("What's the weather and what time is it?")
+  → Analyzes request (both weather + time)
+  → Calls weather agent for weather data
+  → Calls general agent for time data
+  → Synthesizes complete response
+```
+
+See Mastra docs: <https://mastra.ai/docs/agents/networks>
 
 ### Security Notes
 
