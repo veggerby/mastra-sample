@@ -4,7 +4,8 @@ A minimal multi-agent solution template with routing, MCP servers, **RAG/memory 
 
 ## Features
 
-- **Multi-Agent Architecture**: Router agent that delegates to specialized domain agents
+- **Agent Networks**: Mastra's agent network pattern with intelligent routing and delegation
+- **Multi-Agent Architecture**: Router agent coordinates specialized domain agents using LLM reasoning
 - **Memory & RAG Support**: Persistent conversation memory with optional pgvector for semantic search
 - **MCP Integration**: Example MCP server setup with tool allowlists
 - **Persona System**: YAML-based personality configuration
@@ -73,6 +74,7 @@ See [CLI.md](CLI.md) for complete CLI documentation.
 This template includes built-in support for persistent memory and RAG (Retrieval-Augmented Generation):
 
 **Memory Agent:**
+
 ```bash
 # Chat with memory agent (remembers conversation)
 npm run cli -- chat memory
@@ -86,6 +88,7 @@ npm run cli -- chat memory
 ```
 
 **RAG Knowledge Base:**
+
 ```bash
 # Ask the general agent about technical topics
 npm run cli -- chat general -m "What is Mastra framework?"
@@ -102,6 +105,7 @@ npm run cli -- chat general -m "What is Mastra framework?"
 The knowledge base is automatically seeded when the server starts and agents can both query and expand it.
 
 See [MEMORY.md](MEMORY.md) for comprehensive guide on:
+
 - Setting up memory-enabled agents
 - Using RAG tools for knowledge retrieval
 - Creating custom knowledge bases
@@ -150,19 +154,80 @@ MEMORY.md                # RAG/Memory setup and usage guide
 
 ## Key Concepts
 
-### Routing Pattern
+### Agent Network Pattern
 
-The router agent analyzes user intent and delegates to specialized domain agents:
+This template uses Mastra's **agent network** pattern for intelligent routing and coordination. The router agent uses LLM reasoning to delegate tasks to specialized agents, workflows, and tools based on descriptions and context.
+
+**How it works:**
+
+1. User sends a request to the router agent
+2. Router analyzes the request using the LLM
+3. Router decides which primitive(s) to invoke (agents, workflows, or tools)
+4. Selected primitives execute and return results
+5. Router synthesizes the final response
+
+**Network Configuration:**
 
 ```typescript
-const router = createAgent({
-    name: 'router',
-    instructions: 'Analyze intent and route to appropriate agent',
-    network: {
-        general: generalAgent,
-        weather: weatherAgent,
-    },
+const routerAgent = new Agent({
+  id: 'router',
+  name: 'Router Agent',
+  instructions: 'You are a network coordinator...',
+  model: openai('gpt-4o-mini'),
+  agents: {
+    general: generalAgent,    // Handles conversation, time, units, RAG
+    weather: weatherAgent,    // Handles weather queries
+  },
+  memory: createMemory(),     // Required for networks
 });
+```
+
+**Agent Descriptions:**
+
+Each agent in the network has a clear `description` that helps the router make intelligent routing decisions:
+
+```typescript
+const generalAgent = new Agent({
+  id: 'general',
+  name: 'General Agent',
+  description: `Handles general conversation, greetings, and knowledge base queries.
+    Equipped with tools for time operations, unit conversions, and RAG access.`,
+  // ...
+});
+```
+
+**Calling Networks:**
+
+When using the HTTP API, MastraServer automatically handles network routing when you call the router agent:
+
+```bash
+# The router will delegate to the appropriate agent based on the query
+curl -X POST http://localhost:3000/api/agents/router/generate \
+  -H "Content-Type: application/json" \
+  -d '{"messages": [{"role": "user", "content": "What is the weather?"}]}'
+```
+
+### Agent Networks vs Direct Agent Calls
+
+**Use the router agent (network pattern) when:**
+
+- You want intelligent routing based on user intent
+- The request might need coordination across multiple agents/tools
+- You want the LLM to decide which capabilities to use
+
+**Use specialized agents directly when:**
+
+- You know exactly which agent is needed
+- You want to bypass routing for specific use cases
+- Testing individual agent capabilities
+
+```bash
+# Network routing (recommended for most use cases)
+pnpm run cli -- chat router -m "What's the weather and what time is it?"
+
+# Direct agent call (for specific scenarios)
+pnpm run cli -- chat weather -m "Weather in London?"
+pnpm run cli -- chat general -m "What is Mastra?"
 ```
 
 ### Agent Creation

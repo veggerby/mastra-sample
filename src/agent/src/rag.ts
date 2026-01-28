@@ -295,7 +295,7 @@ export async function seedVectorKnowledgeBase(config: Partial<RAGConfig> = {}) {
       await Promise.all(
         documents.map((doc) =>
           doc.chunk({
-            strategy: chunkingConfig.strategy,
+            strategy: "recursive" as const,
             maxSize: chunkingConfig.maxSize,
             overlap: chunkingConfig.overlap,
           }),

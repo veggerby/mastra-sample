@@ -55,12 +55,13 @@ export interface MemoryConfig {
   /**
    * Semantic recall: Enable vector-based message retrieval
    * - true: Enable with default settings
-   * - object: Enable with custom settings
+   * - object: Configure with topK and messageRange (both required), minScore optional
    */
   semanticRecall?:
     | boolean
     | {
-        limit?: number;
+        topK: number;
+        messageRange: number | { before: number; after: number };
         minScore?: number;
       };
 
@@ -159,8 +160,8 @@ export const defaultMemoryOptions: MemoryConfig = {
  *   id: "my-agent",
  *   memory: createMemory({
  *     lastMessages: 50,
- *     semanticRecall: { enabled: true, limit: 10 },
- *   }),
+ *     semanticRecall: { topK: 10, minScore: 0.6 },
+ *   }),,
  * });
  * ```
  */
@@ -200,7 +201,8 @@ export function createMemoryWithSemanticRecall(
     options: {
       ...defaultMemoryOptions,
       semanticRecall: {
-        limit: 5,
+        topK: 5,
+        messageRange: 1,
         minScore: 0.5,
         ...((typeof options?.semanticRecall === "object" &&
           options?.semanticRecall) ||
@@ -254,7 +256,7 @@ export function createBasicMemory(lastMessages: number = 20): Memory {
  *   memory: createAdvancedMemory({
  *     lastMessages: 30,
  *     workingMemory: { enabled: true, maxTokens: 3000 },
- *     semanticRecall: { limit: 8, minScore: 0.65 }
+ *     semanticRecall: { topK: 8, minScore: 0.65 }
  *   }),
  * });
  * ```
@@ -270,7 +272,8 @@ export function createAdvancedMemory(options?: Partial<MemoryConfig>): Memory {
         maxTokens: 4000,
       },
       semanticRecall: {
-        limit: 10,
+        topK: 10,
+        messageRange: 2,
         minScore: 0.6,
         ...((typeof options?.semanticRecall === "object" &&
           options?.semanticRecall) ||

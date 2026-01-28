@@ -1,29 +1,41 @@
 import { Agent } from "@mastra/core/agent";
 import { openai } from "@ai-sdk/openai";
+import { generalAgent } from "./general.js";
+import { weatherAgent } from "./weather.js";
+import { createMemory } from "../memory.js";
 
 /**
- * Router Agent - Analyzes user intent and delegates to specialized agents
+ * Router Agent - Network coordinator that delegates to specialized agents
+ *
+ * Uses Mastra's agent network pattern to intelligently route requests to:
+ * - General agent: Conversation, knowledge base queries, time/unit tools
+ * - Weather agent: Real-time weather data and forecasts
  */
 export const routerAgent = new Agent({
   id: "router",
-  name: "router",
-  instructions: `You are a routing agent that delegates to specialized agents based on user requests.
+  name: "Router Agent",
+  description: `Coordinates a network of specialized agents to handle diverse user requests.
+    Routes queries to the appropriate agent based on context and intent.
+    Manages general conversation, weather queries, time operations, unit conversions,
+    and knowledge base access.`,
+  instructions: `You are a network coordinator managing specialized agents.
 
-When a user asks a question:
-1. Determine which specialized agent can best handle it
-2. Immediately delegate to that agent using the network
-3. Return the agent's response directly
+Your network includes:
+- A general conversation agent with knowledge base access, time tools, and unit conversion tools
+- A weather agent with real-time weather data
 
-Available agents in your network:
-- general: For general conversation, greetings, non-specialized queries, time/timezone queries, and unit conversions (imperial/metric)
-- weather: For weather-related questions, forecasts, and climate information
+Your job is to:
+1. Understand the user's request
+2. Delegate to the appropriate agent or tool
+3. Return complete, well-formatted responses
 
-Routing guidelines:
-- Time & timezone questions (current time, time zones, UTC conversions) → general agent
-- Unit conversions (Celsius/Fahrenheit, miles/kilometers, pounds/kilograms, etc.) → general agent
-- Weather queries (current weather, forecasts, temperature, conditions) → weather agent
-- Everything else (greetings, general questions, chitchat) → general agent
-
-Always use the appropriate agent from your network to answer questions. Do not just say you will route - actually delegate to the agent.`,
+Always respond with complete information—no bullet points unless specifically requested.
+Write in full paragraphs for explanations.
+Do not answer with incomplete or uncertain information.`,
   model: openai("gpt-4o-mini"),
+  agents: {
+    general: generalAgent,
+    weather: weatherAgent,
+  },
+  memory: createMemory(),
 });

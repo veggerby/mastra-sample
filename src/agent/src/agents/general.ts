@@ -19,9 +19,14 @@ import { createMemory } from "../memory.js";
  */
 const persona = loadPersona();
 
-export const generalAgent = new Agent({
+export const generalAgent: Agent = new Agent({
   id: "general",
-  name: "general",
+  name: "General Agent",
+  description: `Handles general conversation, greetings, and knowledge base queries.
+    Equipped with tools for time operations (UTC time, timezone conversions),
+    unit conversions (metric/imperial), and access to a RAG-based knowledge base.
+    Use this agent for non-weather queries, including questions about stored information,
+    time zones, unit conversions, and general assistance.`,
   instructions: `${persona.systemPrompt}
 
 You have access to a knowledge base with information, as well as tools for getting the current time in UTC, converting UTC timestamps to specific timezones, and converting units between metric and imperial systems.

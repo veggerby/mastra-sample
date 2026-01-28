@@ -1,6 +1,5 @@
 import { createVectorQueryTool } from "@mastra/rag";
 import { embeddingModel, getKnowledgeIndexName } from "../../rag.js";
-import { Tool } from "@mastra/core/tools";
 
 /**
  * RAG Query Tool - Search the knowledge base using semantic vector search
@@ -15,19 +14,20 @@ import { Tool } from "@mastra/core/tools";
  * The tool name and description are crafted to help the agent understand
  * when to use this retrieval capability.
  */
-export const queryKnowledgeTool: Tool = createVectorQueryTool({
-  vectorStoreName: "vector", // Must match the vector store name in Mastra config
-  indexName: getKnowledgeIndexName(),
-  model: embeddingModel,
-  // Database-specific configurations
-  databaseConfig: {
-    // pgvector-specific options (when using PostgreSQL)
-    pgvector: {
-      minScore: 0.5, // Filter results below this similarity threshold
-      // ef: 200, // HNSW search parameter for accuracy/speed tradeoff
-      // probes: 10, // IVFFlat probe parameter
+export const queryKnowledgeTool: ReturnType<typeof createVectorQueryTool> =
+  createVectorQueryTool({
+    vectorStoreName: "vector", // Must match the vector store name in Mastra config
+    indexName: getKnowledgeIndexName(),
+    model: embeddingModel,
+    // Database-specific configurations
+    databaseConfig: {
+      // pgvector-specific options (when using PostgreSQL)
+      pgvector: {
+        minScore: 0.5, // Filter results below this similarity threshold
+        // ef: 200, // HNSW search parameter for accuracy/speed tradeoff
+        // probes: 10, // IVFFlat probe parameter
+      },
+      // LibSQL-specific options
+      // libsql: { },
     },
-    // LibSQL-specific options
-    // libsql: { },
-  },
-});
+  });
