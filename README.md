@@ -9,6 +9,7 @@ A production-ready multi-agent AI application demonstrating Mastra's core patter
 - **Type-Safe Tools**: Zod schemas for runtime validation and type inference
 - **Production Ready**: LibSQL for development, PostgreSQL+pgvector for production
 - **Streaming Support**: Real-time responses via Mastra Client SDK
+- **Markdown Rendering**: Automatic terminal-formatted output for markdown responses
 - **Comprehensive Testing**: Full test coverage with vitest
 
 ## Quick Start
@@ -53,12 +54,14 @@ The router agent uses GPT-4o-mini to analyze requests and delegate to the best s
 ### RAG: Automatic Knowledge Seeding
 
 On first run, the server:
+
 1. Loads markdown files from `/knowledge/`
 2. Chunks and embeds documents
 3. Stores vectors for semantic search
 4. Agents can now query knowledge via tools
 
 **Included knowledge:**
+
 - BioSynth Corporation research
 - Quantum Flux Capacitor technology
 - Graviton Wave Theory
@@ -217,6 +220,7 @@ pnpm run clean
 ### Zod Schemas Everywhere
 
 Every tool uses Zod for runtime validation:
+
 - Input is validated before execution
 - Output matches expected shape
 - TypeScript gets full type inference
@@ -227,6 +231,7 @@ See **[Tool Development Guide](./docs/tools.md)** for patterns and examples.
 ### Agent Networks
 
 Agents work together via LLM-driven routing:
+
 - Router analyzes requests
 - Delegates to specialists
 - Specialists have focused expertise
@@ -237,6 +242,7 @@ See **[Agent Development Guide](./docs/agents.md)** for creating custom agents.
 ### RAG by Default
 
 Knowledge base is automatically seeded:
+
 - Markdown files → Chunks → Embeddings → Vector storage
 - Agents query knowledge via tools
 - Semantic search finds relevant information
@@ -285,16 +291,19 @@ export const myTool = createTool({
 ## Troubleshooting
 
 **Knowledge base not seeding:**
+
 ```bash
 rm -rf data/app.db && pnpm run dev
 ```
 
 **Dependencies issues:**
+
 ```bash
 rm -rf node_modules pnpm-lock.yaml && pnpm install
 ```
 
 **Tool not being called:**
+
 - Check tool description is clear and specific
 - Verify input schema matches expected LLM output
 - Add logging to see what the LLM is attempting

@@ -7,7 +7,28 @@ import chalk from "chalk";
 import ora from "ora";
 import boxen from "boxen";
 import cliWidth from "cli-width";
+import { Marked } from "marked";
+import { markedTerminal } from "marked-terminal";
 import { config } from "./config.js";
+
+// Configure marked for terminal output
+const marked = new Marked();
+marked.use(
+  markedTerminal({
+    firstHeading: chalk.bold.cyan,
+    heading: chalk.bold.yellow,
+    blockquote: chalk.gray.italic,
+    code: chalk.green,
+    codespan: chalk.cyan,
+    strong: chalk.bold.white,
+    em: chalk.italic,
+    listitem: (text: string) => `  • ${text}`,
+    link: chalk.blue.underline,
+    href: chalk.blue.underline,
+    paragraph: (text: string) => `${text}\n`,
+    width: Math.min(cliWidth(), 100),
+  }) as any,
+);
 
 /**
  * Type definition for workflow execution result
@@ -22,10 +43,12 @@ interface WorkflowExecutionResult {
     report?: string;
     [key: string]: unknown;
   };
-  error?: {
-    message?: string;
-    [key: string]: unknown;
-  } | string;
+  error?:
+    | {
+        message?: string;
+        [key: string]: unknown;
+      }
+    | string;
   [key: string]: unknown;
 }
 
@@ -47,15 +70,15 @@ function showHeader(title: string, subtitle?: string, showConfig = false) {
   if (showConfig) {
     const configLines: string[] = [];
     configLines.push(chalk.dim.gray(`API: ${config.api.baseUrl}`));
-    
+
     const debugFlags: string[] = [];
     if (config.debug.showChunks) debugFlags.push("CHUNKS");
     if (config.debug.showTools) debugFlags.push("TOOLS");
-    
+
     if (debugFlags.length > 0) {
       configLines.push(chalk.dim.yellow(`Debug: ${debugFlags.join(", ")}`));
     }
-    
+
     if (configLines.length > 0) {
       content += "\n" + chalk.dim("─".repeat(Math.min(width - 4, 56)));
       content += "\n" + configLines.join(" • ");
@@ -73,31 +96,15 @@ function showHeader(title: string, subtitle?: string, showConfig = false) {
   );
 }
 
-// Helper function to format agent responses
+// Helper function to format agent responses (renders markdown)
 function formatResponse(_agentName: string, text: string) {
-  const width = Math.min(cliWidth(), 80);
-  const lines = text.split("\n");
-  const formatted = lines
-    .map((line) => {
-      if (line.length <= width - 4) return line;
-      // Simple word wrap
-      const words = line.split(" ");
-      const wrapped: string[] = [];
-      let current = "";
-      for (const word of words) {
-        if ((current + " " + word).length <= width - 4) {
-          current = current ? current + " " + word : word;
-        } else {
-          if (current) wrapped.push(current);
-          current = word;
-        }
-      }
-      if (current) wrapped.push(current);
-      return wrapped.join("\n");
-    })
-    .join("\n");
-
-  return formatted;
+  try {
+    // Render markdown to terminal-friendly format
+    return marked.parse(text) as string;
+  } catch (error) {
+    // Fallback to plain text if markdown parsing fails
+    return text;
+  }
 }
 
 program
@@ -582,9 +589,19 @@ program
   .command("workflow")
   .description("Execute a workflow")
   .argument("<name>", "Workflow name to execute")
-  .option("-t, --topic <topic>", "Research topic (for research-report workflow)")
-  .option("-r, --max-results <number>", "Maximum number of results (default: 3)", "3")
-  .option("-i, --input <json>", "Input data as JSON string (overrides other options)")
+  .option(
+    "-t, --topic <topic>",
+    "Research topic (for research-report workflow)",
+  )
+  .option(
+    "-r, --max-results <number>",
+    "Maximum number of results (default: 3)",
+    "3",
+  )
+  .option(
+    "-i, --input <json>",
+    "Input data as JSON string (overrides other options)",
+  )
   .action(
     async (
       workflowName: string,
@@ -644,10 +661,12 @@ program
         // Use Mastra Client SDK to execute workflow
         const workflow = mastraClient.getWorkflow(workflowName);
         const run = await workflow.createRun();
-        
+
         // Use startAsync to wait for workflow completion
         // Using unknown to handle the complex type from Mastra SDK
-        const result = await run.startAsync({ inputData }) as unknown as WorkflowExecutionResult;
+        const result = (await run.startAsync({
+          inputData,
+        })) as unknown as WorkflowExecutionResult;
 
         spinner.succeed(chalk.green.bold("✅ Workflow completed"));
         console.log();
@@ -658,11 +677,13 @@ program
         // startAsync returns { status, steps, input, result }
         // The workflow output is in result.result
         const workflowOutput = result?.result;
-        
+
         if (workflowOutput?.summary && workflowOutput?.report) {
           // Success case - we have the expected output
-          console.log(chalk.green(`Status: ${chalk.bold(result.status || "success")}`));
-          
+          console.log(
+            chalk.green(`Status: ${chalk.bold(result.status || "success")}`),
+          );
+
           console.log();
           console.log(chalk.cyan.bold("📝 Summary:"));
           console.log(chalk.white(workflowOutput.summary));
@@ -674,15 +695,18 @@ program
         } else if (result?.status === "failed" || result?.error) {
           // Error case
           console.log(chalk.red(`Status: ${chalk.bold("failed")}`));
-          const errorMessage = typeof result.error === 'string' 
-            ? result.error 
-            : result.error?.message || "Unknown error";
-          console.log(
-            chalk.red(`Error: ${errorMessage}`),
-          );
+          const errorMessage =
+            typeof result.error === "string"
+              ? result.error
+              : result.error?.message || "Unknown error";
+          console.log(chalk.red(`Error: ${errorMessage}`));
         } else {
           // Unknown result structure - show what we got
-          console.log(chalk.yellow(`Status: ${chalk.bold(result?.status || "completed")}`));
+          console.log(
+            chalk.yellow(
+              `Status: ${chalk.bold(result?.status || "completed")}`,
+            ),
+          );
           console.log();
           console.log(chalk.dim("Raw result:"));
           console.log(chalk.gray(JSON.stringify(result, null, 2)));
