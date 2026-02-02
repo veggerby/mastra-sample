@@ -5,12 +5,14 @@ A production-ready multi-agent AI application demonstrating Mastra's core patter
 ## Features
 
 - **Agent Networks**: Router agent delegates to specialized agents using LLM reasoning
-- **RAG & Memory**: Automatic knowledge base seeding with semantic search
+- **Multi-Step Workflows**: Orchestrate complex tasks with RAG, tool calls, and agent collaboration
+- **RAG & Memory**: Automatic knowledge base seeding with semantic search and persistent conversation threads
 - **Type-Safe Tools**: Zod schemas for runtime validation and type inference
 - **Production Ready**: LibSQL for development, PostgreSQL+pgvector for production
 - **Streaming Support**: Real-time responses via Mastra Client SDK
-- **Markdown Rendering**: Automatic terminal-formatted output for markdown responses
-- **Comprehensive Testing**: Full test coverage with vitest
+- **Full-Featured CLI**: Interactive chat, workflow execution, and agent management
+- **Markdown Rendering**: Terminal-formatted output with syntax highlighting
+- **HTTP API Server**: Express-based REST API with built-in Mastra endpoints
 
 ## Quick Start
 
@@ -34,7 +36,7 @@ pnpm run cli -- chat general -m "Tell me about BioSynth Corporation"
 
 ### Agent Network Pattern
 
-```
+```txt
 User Request → Router Agent → [General | Weather | Memory] Agent → Response
                     ↓
             LLM analyzes request
@@ -65,6 +67,30 @@ On first run, the server:
 - BioSynth Corporation research
 - Quantum Flux Capacitor technology
 - Graviton Wave Theory
+
+### Workflows: Multi-Step Orchestration
+
+Workflows combine multiple steps for complex tasks:
+
+**Research Report Workflow** (included):
+
+1. **Query Knowledge Base**: Semantic search across documents
+2. **Get Metadata**: Timestamp and formatting data
+3. **Synthesize Report**: Agent generates comprehensive markdown report
+
+Execute via CLI:
+
+```bash
+pnpm run cli -- workflow researchReport --topic "your topic"
+```
+
+**Example topics:**
+
+- "BioSynth products"
+- "quantum flux capacitor applications"
+- "BioSynth and Quantum Flux Capacitor collaboration"
+
+Workflows return structured output with summary and full report.
 
 ### Tools: Zod Schema Validated
 
@@ -110,6 +136,10 @@ pnpm run cli -- chat memory   # Remembers context
 # Get weather
 pnpm run cli -- weather "San Francisco"
 
+# Execute workflows
+pnpm run cli -- workflow researchReport --topic "quantum computing"
+pnpm run cli -- workflow researchReport --topic "BioSynth and Quantum Flux Capacitor collaboration"
+
 # Disable streaming
 pnpm run cli -- chat general -m "Hello" --no-stream
 ```
@@ -118,7 +148,7 @@ See **[CLI Documentation](./src/cli/README.md)** for complete reference.
 
 ## Project Structure
 
-```
+```txt
 mastra-sample/
 ├── docs/              # Comprehensive documentation
 ├── knowledge/         # Knowledge base (markdown files)
@@ -309,6 +339,48 @@ rm -rf node_modules pnpm-lock.yaml && pnpm install
 - Add logging to see what the LLM is attempting
 
 See **[Getting Started Guide](./docs/getting-started.md)** for more troubleshooting tips.
+
+## Roadmap
+
+Features and enhancements planned for future releases:
+
+### Testing & Quality
+
+- **Comprehensive Test Suite**: Unit and integration tests with Vitest (configured, not yet implemented)
+- **E2E Testing**: End-to-end workflow and agent interaction tests
+- **Performance Benchmarks**: Measure and optimize response times and resource usage
+
+### Advanced Features
+
+- **MCP Server Integration**: Model Context Protocol for extended tool capabilities
+- **Persona System**: YAML-based agent personality customization (configured but not documented)
+- **Tool Allowlists**: Fine-grained control over which tools agents can access
+- **Workflow Streaming**: Real-time step-by-step updates during workflow execution
+- **Batch Operations**: Process multiple queries or documents in parallel
+
+### Production Enhancements
+
+- **Authentication & Authorization**: Secure API endpoints with API keys or OAuth
+- **Rate Limiting**: Protect against abuse and manage API usage quotas
+- **Environment Configs**: Enhanced separation of development and production settings
+- **Monitoring & Observability**: Structured logging, metrics, and tracing
+- **Caching Layer**: Redis integration for improved performance
+
+### Extensibility
+
+- **Custom Embedding Providers**: Support for alternatives to OpenAI (Cohere, HuggingFace, local models)
+- **Multi-Model Support**: Mix and match LLM providers (Anthropic, Google, local LLMs)
+- **Plugin System**: Easy integration of custom agents, tools, and workflows
+- **Webhooks**: Event-driven notifications for workflow completions and agent actions
+
+### Developer Experience
+
+- **Hot Reload for Knowledge Base**: Auto-refresh when knowledge files change
+- **Interactive Workflow Builder**: Visual tool for creating multi-step workflows
+- **Agent Performance Dashboard**: Monitor agent success rates and tool usage
+- **Development CLI**: Enhanced debugging tools and introspection
+
+Contributions and feedback on roadmap priorities are welcome!
 
 ## Resources
 
